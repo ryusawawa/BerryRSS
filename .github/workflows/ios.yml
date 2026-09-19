@@ -27,5 +27,5 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS App (Debug / Simulator or unsigned)
-        run: flutter build ios --debug --no-codesign
+      - name: Build iOS App for Simulator
+        run: flutter build ios --debug --simulator --no-codesign
