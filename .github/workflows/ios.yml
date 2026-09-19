@@ -1,4 +1,4 @@
-name: Build iOS App
+name: Build iOS App (Device)
 
 on:
   push:
@@ -31,17 +31,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS App for Simulator
-        run: flutter build ios --debug --simulator --no-codesign
+      - name: Build iOS App for Device
+        run: flutter build ios --release --no-codesign
 
       - name: Create IPA package
         run: |
           mkdir Payload
-          cp -r build/ios/iphonesimulator/Runner.app Payload/
-          zip -r TumiYomi-Simulator.ipa Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r TumiYomi-Device.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TumiYomi-IPA
-          path: TumiYomi-Simulator.ipa
+          name: TumiYomi-Device-IPA
+          path: TumiYomi-Device.ipa
