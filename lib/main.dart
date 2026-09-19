@@ -231,9 +231,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.brown.shade300, width: 4),
+                border: Border.all(color: const Color(0xFFAEBFD3), width: 4),
                 borderRadius: BorderRadius.circular(24),
-                color: Colors.amber.shade50.withOpacity(0.3),
+                color: const Color(0xFFC5D5EB),
               ),
               child: Stack(
                 children: [
@@ -243,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     right: 0,
                     child: Center(
                       child: Text(
-                        '〜 魔法の積読瓶 〜',
+                        '<(￣︶￣)>',
                         style: TextStyle(color: Colors.brown, fontWeight: FontWeight.bold),
                       ),
                     ),
