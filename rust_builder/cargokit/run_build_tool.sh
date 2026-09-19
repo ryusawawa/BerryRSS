@@ -9,7 +9,7 @@ mkdir -p android/app/src/main/jniLibs/arm64-v8a
 mkdir -p build/rust_lib_tumiyomi/build/aarch64-linux-android/debug/
 
 # 手動ビルドした .so を Cargokit が期待するすべての場所に確実に配置
-cp rust/target/aarch64-linux-android/debug/librust_lib_tumiyomi.so android/app/src/main/jniLibs/arm64-v8a/
+cp rust/target/aarch64-linux-android/debug/librust_lib_tumiyomi.so android/app/src/main/jniLibs/arm64-v8a/ 2>/dev/null || true
 cp rust/target/aarch64-linux-android/debug/librust_lib_tumiyomi.so build/rust_lib_tumiyomi/build/aarch64-linux-android/debug/ 2>/dev/null || true
 
 echo "=== .so successfully injected. Skipping cargo build. ==="
