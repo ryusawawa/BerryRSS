@@ -20,8 +20,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
-          channel: 'stable'
+          flutter-version: '3.48.0-0.5.pre'
+          channel: 'dev'
           cache: true
 
       - name: Install dependencies
