@@ -2,7 +2,7 @@
 set -e
 echo "=== Cargokit fully bypassed: Using prebuilt binary ==="
 
-cd /home/debian/tumiyomi
+cd "$(dirname "$0")/../.."
 
 # 必要な出力先ディレクトリをすべて作成
 mkdir -p android/app/src/main/jniLibs/arm64-v8a
