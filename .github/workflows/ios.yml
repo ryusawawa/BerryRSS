@@ -24,6 +24,10 @@ jobs:
           channel: 'master'
           cache: true
 
+      - name: Add iOS targets for Rust
+        run: |
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+
       - name: Install dependencies
         run: flutter pub get
 
