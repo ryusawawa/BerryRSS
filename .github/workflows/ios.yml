@@ -33,3 +33,15 @@ jobs:
 
       - name: Build iOS App for Simulator
         run: flutter build ios --debug --simulator --no-codesign
+
+      - name: Create IPA package
+        run: |
+          mkdir Payload
+          cp -r build/ios/iphonesimulator/Runner.app Payload/
+          zip -r TumiYomi-Simulator.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TumiYomi-IPA
+          path: TumiYomi-Simulator.ipa
