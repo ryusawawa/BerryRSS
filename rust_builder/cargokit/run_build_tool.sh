@@ -13,14 +13,14 @@ if [ "$PLATFORM_NAME" = "iphonesimulator" ]; then
     OUT_DIR="build/ios/Debug-iphonesimulator/rust_lib_tumiyomi"
     mkdir -p "$OUT_DIR"
     
-    cargo build -p rust_lib_tumiyomi --target "$RUST_TARGET" --debug
+    cargo build -p rust_lib_tumiyomi --target "$RUST_TARGET"
     cp "rust/target/$RUST_TARGET/debug/librust_lib_tumiyomi.a" "$OUT_DIR/librust_lib_tumiyomi.a"
 elif [ "$PLATFORM_NAME" = "iphoneos" ]; then
     RUST_TARGET="aarch64-apple-ios"
     OUT_DIR="build/ios/Debug-iphoneos/rust_lib_tumiyomi"
     mkdir -p "$OUT_DIR"
     
-    cargo build -p rust_lib_tumiyomi --target "$RUST_TARGET" --debug
+    cargo build -p rust_lib_tumiyomi --target "$RUST_TARGET"
     cp "rust/target/$RUST_TARGET/debug/librust_lib_tumiyomi.a" "$OUT_DIR/librust_lib_tumiyomi.a"
 else
     mkdir -p android/app/src/main/jniLibs/arm64-v8a
