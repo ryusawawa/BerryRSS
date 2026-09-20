@@ -6,8 +6,6 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
-import 'api/simple.dart';
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -24,40 +22,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
-  bool dco_decode_bool(dynamic raw);
-
-  @protected
-  int dco_decode_i_32(dynamic raw);
-
-  @protected
-  PlatformInt64 dco_decode_i_64(dynamic raw);
-
-  @protected
-  void dco_decode_unit(dynamic raw);
+  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
-  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
-
-  @protected
-  void sse_decode_unit(SseDeserializer deserializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
-
-  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
-  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_unit(void self, SseSerializer serializer);
+  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class

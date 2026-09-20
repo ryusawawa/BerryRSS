@@ -3,8 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api/simple.dart';
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -67,7 +65,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 292770082;
+  int get rustContentHash => -291292710;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,19 +76,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
       );
 }
 
-abstract class RustLibApi extends BaseApi {
-  Future<int> crateApiSimpleCalculateConsumeReward({
-    required bool isRotten,
-    required bool isRare,
-  });
-
-  Future<bool> crateApiSimpleCheckIsRotten({
-    required PlatformInt64 createdAtEpoch,
-    required PlatformInt64 currentEpoch,
-  });
-
-  Future<bool> crateApiSimpleDetermineIfRare({required int randomSeed});
-}
+abstract class RustLibApi extends BaseApi {}
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustLibApiImpl({
@@ -100,129 +86,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.portManager,
   });
 
-  @override
-  Future<int> crateApiSimpleCalculateConsumeReward({
-    required bool isRotten,
-    required bool isRare,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_bool(isRotten, serializer);
-          sse_encode_bool(isRare, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 1,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_i_32,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleCalculateConsumeRewardConstMeta,
-        argValues: [isRotten, isRare],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleCalculateConsumeRewardConstMeta =>
-      const TaskConstMeta(
-        debugName: "calculate_consume_reward",
-        argNames: ["isRotten", "isRare"],
-      );
-
-  @override
-  Future<bool> crateApiSimpleCheckIsRotten({
-    required PlatformInt64 createdAtEpoch,
-    required PlatformInt64 currentEpoch,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(createdAtEpoch, serializer);
-          sse_encode_i_64(currentEpoch, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 2,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleCheckIsRottenConstMeta,
-        argValues: [createdAtEpoch, currentEpoch],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleCheckIsRottenConstMeta =>
-      const TaskConstMeta(
-        debugName: "check_is_rotten",
-        argNames: ["createdAtEpoch", "currentEpoch"],
-      );
-
-  @override
-  Future<bool> crateApiSimpleDetermineIfRare({required int randomSeed}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_32(randomSeed, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 3,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleDetermineIfRareConstMeta,
-        argValues: [randomSeed],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleDetermineIfRareConstMeta =>
-      const TaskConstMeta(
-        debugName: "determine_if_rare",
-        argNames: ["randomSeed"],
-      );
-
   @protected
-  bool dco_decode_bool(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as bool;
-  }
-
-  @protected
-  int dco_decode_i_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as int;
-  }
-
-  @protected
-  PlatformInt64 dco_decode_i_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dcoDecodeI64(raw);
-  }
-
-  @protected
-  void dco_decode_unit(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return;
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -232,42 +99,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
-  }
-
-  @protected
-  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getPlatformInt64();
-  }
-
-  @protected
-  void sse_decode_unit(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
-  }
-
-  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
   }
 
   @protected
-  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+  void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putPlatformInt64(self);
-  }
-
-  @protected
-  void sse_encode_unit(void self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }
