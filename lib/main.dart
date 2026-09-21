@@ -73,7 +73,7 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 2; // デフォルトは真ん中の「瓶」
+  int _currentIndex = 2;
 
   int coins = 0;
   int maxLimit = 10;
@@ -139,7 +139,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     _saveData();
   }
 
-  // ドメイン抽出ヘルパー
   String _extractDomain(String url) {
     try {
       final uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
@@ -153,21 +152,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     int reward = 10;
     bool isCombo = false;
 
-    // ドメイン合体ギミックのチェック
     final domain = _extractDomain(item.url);
     if (domain.isNotEmpty) {
       final sameDomainItems = items.where((e) => e.id != item.id && _extractDomain(e.url) == domain).toList();
       if (sameDomainItems.isNotEmpty) {
         isCombo = true;
-        reward = 100; // 大当たり！
-        // ヒ・ミ・ツ図鑑にアンロック保存
         final prefs = await SharedPreferences.getInstance();
         List<String> secrets = prefs.getStringList('secret_yomi') ?? [];
         if (!secrets.contains(domain)) {
           secrets.add(domain);
           await prefs.setStringList('secret_yomi', secrets);
         }
-        // 相方も一緒に消す（合体演出）
         final partner = sameDomainItems.first;
         setState(() {
           items.removeWhere((element) => element.id == item.id || element.id == partner.id);
@@ -335,9 +330,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             )
           : null,
       bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF9F5).withOpacity(0.9),
+          color: const Color(0xFFFFFDFB).withOpacity(0.9),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: const Color(0xFFD4B2A7),
@@ -502,7 +497,7 @@ class BottleHomeTab extends StatelessWidget {
                   child: Container(
                     child: Center(
                       child: Container(
-                        width: 300,
+                        width: bottleType == 'sake' ? 220 : (bottleType == 'cola' ? 260 : 300),
                         decoration: BoxDecoration(
                           border: Border.all(color: const Color(0xFF8CA8D0), width: 3),
                           borderRadius: const BorderRadius.vertical(
@@ -533,7 +528,6 @@ class BottleHomeTab extends StatelessWidget {
                           ),
                           child: Stack(
                             children: [
-                              // ガラスのハイライト（光の反射表現）
                               Positioned(
                                 top: 10,
                                 left: 12,
@@ -549,6 +543,7 @@ class BottleHomeTab extends StatelessWidget {
                               Padding(
                                 padding: const EdgeInsets.only(top: 12.0),
                                 child: GridView.builder(
+                            reverse: true,
                             padding: const EdgeInsets.all(16),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
@@ -662,7 +657,7 @@ class CustomScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(24.0),
       children: [
-        const Text('🧵 瓶のカスタム工房', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const Text('カスタム', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text('コインを使って瓶の形や色を着せ替えよう！', style: TextStyle(color: Colors.grey)),
         const SizedBox(height: 24),
@@ -743,6 +738,18 @@ class YomiListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final faces = [
+      '(՞˶･֊･˶՞)', '(◍´˘`◍)', 'ꕤ•ᴗ•ಣ', '(੭ ᐕ)', '( ⁠ꈍ⁠ᴗ⁠ꈍ⁠)',
+      '(⁠◍⁠•⁠ᴗ⁠•⁠◍⁠)', '( ฅ•ω•)ฅ', '(๑′ᴗ‵๑)', '(ᐢ • ˕ • ᐢ)', '˘͈ᗜ˘͈',
+    ];
+    final collectedFaces = <String, int>{};
+    for (var item in items) {
+      String face = faces[item.title.hashCode % faces.length];
+      if (item.isRotten) face = '( 💀 )';
+      else if (item.isRare) face = '(★ω★)';
+      collectedFaces[face] = (collectedFaces[face] ?? 0) + 1;
+    }
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -751,20 +758,34 @@ class YomiListScreen extends StatelessWidget {
           const Text('これまで出会ったヨミ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           Expanded(
-            child: items.isEmpty
+            child: collectedFaces.isEmpty
                 ? const Center(child: Text('まだヨミがいません'))
-                : ListView.builder(
-                    itemCount: items.length,
+                : GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      childAspectRatio: 1.5,
+                    ),
+                    itemCount: collectedFaces.length,
                     itemBuilder: (context, index) {
-                      final item = items[index];
-                      return Card(
-                        elevation: 0,
-                        color: Colors.white.withOpacity(0.7),
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          leading: const Text('(・ω・)', style: TextStyle(fontSize: 20)),
-                          title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(item.url.isNotEmpty ? item.url : 'URLなし'),
+                      final entry = collectedFaces.entries.elementAt(index);
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.red.shade300,
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(entry.key, style: const TextStyle(fontSize: 22)),
+                            const SizedBox(height: 8),
+                            Text('所持・遭遇数: ${entry.value}つ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ],
                         ),
                       );
                     },
@@ -788,7 +809,6 @@ class _RssScreenState extends State<RssScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _urlController = TextEditingController();
 
-  // 実際の登録済みRSSフィード/記事リスト（初期は空またはカスタム追加分）
   final List<Map<String, String>> _customArticles = [];
 
   void _addArticleToList() {
@@ -821,7 +841,6 @@ class _RssScreenState extends State<RssScreen> {
             style: TextStyle(fontSize: 13, color: Colors.grey),
           ),
           const SizedBox(height: 12),
-          // 記事を手動追加する入力フィールド
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
