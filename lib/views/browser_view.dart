@@ -35,9 +35,12 @@ class BrowserView extends StatefulWidget {
 
 class _BrowserViewState extends State<BrowserView> {
   late final WebViewController _controller;
+  late TextEditingController _urlInputController;
+  
   String _currentUrl = '';
   String _pageTitle = '';
   int _loadingProgress = 0;
+  String _searchEngineBase = 'https://www.google.com/search?q=';
 
   static final List<WebTab> _tabs = [];
   static int _activeTabIndex = 0;
@@ -49,6 +52,7 @@ class _BrowserViewState extends State<BrowserView> {
   void initState() {
     super.initState();
     _currentUrl = widget.url;
+    _urlInputController = TextEditingController(text: widget.url);
 
     if (_tabs.isEmpty) {
       _tabs.add(WebTab(
@@ -58,7 +62,7 @@ class _BrowserViewState extends State<BrowserView> {
       ));
     }
 
-    _initStorage();
+    _initStorageAndSettings();
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -68,13 +72,19 @@ class _BrowserViewState extends State<BrowserView> {
             if (mounted) setState(() => _loadingProgress = progress);
           },
           onPageStarted: (url) {
-            if (mounted) setState(() => _currentUrl = url);
+            if (mounted) {
+              setState(() {
+                _currentUrl = url;
+                _urlInputController.text = url;
+              });
+            }
           },
           onPageFinished: (url) async {
             final title = await _controller.getTitle() ?? '';
             if (mounted) {
               setState(() {
                 _currentUrl = url;
+                _urlInputController.text = url;
                 _pageTitle = title;
               });
               if (_tabs.isNotEmpty && _activeTabIndex < _tabs.length) {
@@ -86,18 +96,23 @@ class _BrowserViewState extends State<BrowserView> {
           },
         ),
       )
-      ..loadRequest(Uri.parse(widget.url));
+      ..loadRequest(Uri.parse(widget.url.isEmpty ? 'https://www.google.com' : widget.url));
   }
 
-  Future<void> _initStorage() async {
+  Future<void> _initStorageAndSettings() async {
     final loadedBookmarks = await AppStorage.loadBookmarks();
     final loadedHistory = await AppStorage.loadHistory();
+    final engine = await AppStorage.loadSearchEngine();
+    
     if (mounted) {
       setState(() {
         _bookmarks.clear();
         _bookmarks.addAll(loadedBookmarks);
         _history.clear();
         _history.addAll(loadedHistory);
+        if (engine.isNotEmpty) {
+          _searchEngineBase = engine;
+        }
       });
     }
   }
@@ -113,6 +128,36 @@ class _BrowserViewState extends State<BrowserView> {
       _history.insert(0, item);
     });
     AppStorage.saveHistory(_history);
+  }
+
+  void _navigateToInput(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
+    Uri? parsed = Uri.tryParse(trimmed);
+    bool isUrl = parsed != null &&
+        (parsed.scheme == 'http' || parsed.scheme == 'https') &&
+        parsed.host.contains('.');
+
+    if (!isUrl && !trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      if (RegExp(r'^[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(/.*)?$').hasMatch(trimmed)) {
+        _loadUrl('https://$trimmed');
+      } else {
+        // 設定された検索エンジンを使用して検索
+        final targetUrl = '$_searchEngineBase${Uri.encodeComponent(trimmed)}';
+        _loadUrl(targetUrl);
+      }
+    } else {
+      _loadUrl(trimmed);
+    }
+  }
+
+  void _loadUrl(String targetUrl) {
+    setState(() {
+      _currentUrl = targetUrl;
+      _urlInputController.text = targetUrl;
+    });
+    _controller.loadRequest(Uri.parse(targetUrl));
   }
 
   void showTabsDialog() {
@@ -159,7 +204,7 @@ class _BrowserViewState extends State<BrowserView> {
                   onTap: () {
                     setState(() {
                       _activeTabIndex = index;
-                      _controller.loadRequest(Uri.parse(_tabs[index].url));
+                      _loadUrl(_tabs[index].url);
                     });
                     Navigator.pop(ctx);
                   },
@@ -168,6 +213,13 @@ class _BrowserViewState extends State<BrowserView> {
             ),
           ),
           actions: [
+            TextButton(
+              onPressed: () {
+                _addNewTab();
+                Navigator.pop(ctx);
+              },
+              child: const Text('新しいタブを追加'),
+            ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('閉じる'),
@@ -188,7 +240,7 @@ class _BrowserViewState extends State<BrowserView> {
     setState(() {
       _tabs.add(newTab);
       _activeTabIndex = _tabs.length - 1;
-      _controller.loadRequest(Uri.parse(newTab.url));
+      _loadUrl(newTab.url);
     });
   }
 
@@ -213,9 +265,20 @@ class _BrowserViewState extends State<BrowserView> {
                       title: Text(item.title.isEmpty ? item.url : item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(item.url, maxLines: 1, overflow: TextOverflow.ellipsis),
                       leading: const Icon(Icons.bookmark, color: Colors.amber),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        onPressed: () {
+                          setState(() {
+                            _bookmarks.removeAt(index);
+                          });
+                          AppStorage.saveBookmarks(_bookmarks);
+                          Navigator.pop(ctx);
+                          showBookmarksDialog();
+                        },
+                      ),
                       onTap: () {
                         Navigator.pop(ctx);
-                        _controller.loadRequest(Uri.parse(item.url));
+                        _loadUrl(item.url);
                       },
                     );
                   },
@@ -254,13 +317,21 @@ class _BrowserViewState extends State<BrowserView> {
                       leading: const Icon(Icons.history),
                       onTap: () {
                         Navigator.pop(ctx);
-                        _controller.loadRequest(Uri.parse(item.url));
+                        _loadUrl(item.url);
                       },
                     );
                   },
                 ),
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              setState(() => _history.clear());
+              AppStorage.saveHistory([]);
+              Navigator.pop(ctx);
+            },
+            child: const Text('履歴を消去'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('閉じる'),
@@ -274,29 +345,48 @@ class _BrowserViewState extends State<BrowserView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('ダウンロード履歴'),
+        title: const Text('ダウンロード管理'),
         content: SizedBox(
           width: double.maxFinite,
-          child: _downloads.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text('ダウンロード履歴はありません。', textAlign: TextAlign.center),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.file_download, color: Colors.blue),
+                title: const Text('現在のページを保存'),
+                subtitle: Text(_pageTitle.isEmpty ? _currentUrl : _pageTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () {
+                  final task = DownloadTask(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    filename: _pageTitle.isNotEmpty ? '$_pageTitle.html' : 'page.html',
+                    url: _currentUrl,
+                    progress: 1.0,
+                    isCompleted: true,
+                  );
+                  setState(() => _downloads.add(task));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('ページをダウンロード保存しました')),
+                  );
+                },
+              ),
+              const Divider(),
+              if (_downloads.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text('ダウンロード履歴はありません。'),
                 )
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _downloads.length,
-                  itemBuilder: (context, index) {
-                    final task = _downloads[index];
-                    return ListTile(
-                      title: Text(task.filename),
+              else
+                ..._downloads.map((task) => ListTile(
+                      title: Text(task.filename, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: LinearProgressIndicator(value: task.progress),
                       trailing: Icon(
                         task.isCompleted ? Icons.check_circle : Icons.downloading,
                         color: task.isCompleted ? Colors.green : Colors.blue,
                       ),
-                    );
-                  },
-                ),
+                    )),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -328,14 +418,6 @@ class _BrowserViewState extends State<BrowserView> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.security),
-              title: const Text('新規シークレットタブ'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _addNewTab(isIncognito: true);
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.tab),
               title: const Text('タブ一覧'),
               onTap: () {
@@ -343,25 +425,17 @@ class _BrowserViewState extends State<BrowserView> {
                 showTabsDialog();
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.security),
+              title: const Text('新規シークレットタブ'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _addNewTab(isIncognito: true);
+              },
+            ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('履歴'),
-              onTap: () {
-                Navigator.pop(ctx);
-                showHistoryDialog();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('ダウンロード'),
-              onTap: () {
-                Navigator.pop(ctx);
-                showDownloadsDialog();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bookmark_border),
+              leading: const Icon(Icons.bookmark_add_outlined),
               title: const Text('ブックマークに追加'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -382,13 +456,29 @@ class _BrowserViewState extends State<BrowserView> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('履歴'),
+              onTap: () {
+                Navigator.pop(ctx);
+                showHistoryDialog();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('ダウンロード'),
+              onTap: () {
+                Navigator.pop(ctx);
+                showDownloadsDialog();
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.share),
               title: const Text('共有'),
               onTap: () {
                 Navigator.pop(ctx);
                 if (_currentUrl.isNotEmpty) {
                   // ignore: deprecated_member_use
-                  Share.share(_currentUrl);
+                  Share.share(_currentUrl, subject: _pageTitle);
                 }
               },
             ),
@@ -397,8 +487,24 @@ class _BrowserViewState extends State<BrowserView> {
               title: const Text('ホーム画面に追加'),
               onTap: () {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('ショートカットを作成しました')),
+                showDialog(
+                  context: context,
+                  builder: (ctx2) => AlertDialog(
+                    title: const Text('ショートカットを作成'),
+                    content: Text('「$_pageTitle」のショートカットをホーム画面に追加しますか？'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx2), child: const Text('キャンセル')),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx2);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('ホーム画面にショートカットを追加しました')),
+                          );
+                        },
+                        child: const Text('追加'),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -422,6 +528,44 @@ class _BrowserViewState extends State<BrowserView> {
       data: isDark ? ThemeData.dark() : theme,
       child: Scaffold(
         backgroundColor: isDark ? Colors.black : Colors.white,
+        appBar: widget.showBar
+            ? AppBar(
+                titleSpacing: 0,
+                title: Container(
+                  height: 40,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: TextField(
+                    controller: _urlInputController,
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: _navigateToInput,
+                    decoration: InputDecoration(
+                      hintText: '検索またはURLを入力',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      suffixIcon: _urlInputController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _urlInputController.clear();
+                              },
+                            )
+                          : null,
+                    ),
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: showBrowserMenu,
+                  ),
+                ],
+              )
+            : null,
         body: Column(
           children: [
             if (_loadingProgress < 100)
