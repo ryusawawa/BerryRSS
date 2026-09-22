@@ -4,14 +4,11 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/simple.dart';
-
 import 'dart:async';
 import 'dart:convert';
-
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -38,8 +35,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   /// Initialize flutter_rust_bridge in mock mode.
   /// No libraries for FFI are loaded.
-  static void initMock({required RustLibApi api}) {
-    instance.initMockImpl(api: api);
+  static void initMock({
+    required RustLibApi api,
+  }) {
+    instance.initMockImpl(
+      api: api,
+    );
   }
 
   /// Dispose flutter_rust_bridge
@@ -71,19 +72,18 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'rust_lib_tumiyomi',
-        ioDirectory: 'rust/target/release/',
-        webPrefix: 'pkg/',
-        wasmBindgenName: 'wasm_bindgen',
-      );
+    stem: 'rust_lib_tumiyomi',
+    ioDirectory: 'rust/target/release/',
+    webPrefix: 'pkg/',
+    wasmBindgenName: 'wasm_bindgen',
+  );
 }
 
 abstract class RustLibApi extends BaseApi {
   String crateApiSimpleGreet({required String name});
 
-  Future<ArticleData> crateApiSimpleProcessAndSaveArticle({
-    required String url,
-  });
+  Future<ArticleData> crateApiSimpleProcessAndSaveArticle(
+      {required String url});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -96,52 +96,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   String crateApiSimpleGreet({required String name}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleGreetConstMeta,
-        argValues: [name],
-        apiImpl: this,
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(name, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
       ),
-    );
+      constMeta: kCrateApiSimpleGreetConstMeta,
+      argValues: [name],
+      apiImpl: this,
+    ));
   }
 
-  TaskConstMeta get kCrateApiSimpleGreetConstMeta =>
-      const TaskConstMeta(debugName: "greet", argNames: ["name"]);
+  TaskConstMeta get kCrateApiSimpleGreetConstMeta => const TaskConstMeta(
+        debugName: "greet",
+        argNames: ["name"],
+      );
 
   @override
-  Future<ArticleData> crateApiSimpleProcessAndSaveArticle({
-    required String url,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(url, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 2,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_article_data,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiSimpleProcessAndSaveArticleConstMeta,
-        argValues: [url],
-        apiImpl: this,
+  Future<ArticleData> crateApiSimpleProcessAndSaveArticle(
+      {required String url}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_String(url, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 2, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_article_data,
+        decodeErrorData: sse_decode_String,
       ),
-    );
+      constMeta: kCrateApiSimpleProcessAndSaveArticleConstMeta,
+      argValues: [url],
+      apiImpl: this,
+    ));
   }
 
   TaskConstMeta get kCrateApiSimpleProcessAndSaveArticleConstMeta =>
@@ -209,11 +202,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_content = sse_decode_String(deserializer);
     var var_imageUrls = sse_decode_list_String(deserializer);
     return ArticleData(
-      id: var_id,
-      title: var_title,
-      content: var_content,
-      imageUrls: var_imageUrls,
-    );
+        id: var_id,
+        title: var_title,
+        content: var_content,
+        imageUrls: var_imageUrls);
   }
 
   @protected
@@ -284,9 +276,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_list_prim_u_8_strict(
-    Uint8List self,
-    SseSerializer serializer,
-  ) {
+      Uint8List self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
