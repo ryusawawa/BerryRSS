@@ -1,9 +1,41 @@
+class ArticleItem {
+  final String id;
+  final String title;
+  final String link;
+  final String pubDate;
+  final String content;
+
+  ArticleItem({
+    required this.id,
+    required this.title,
+    required this.link,
+    required this.pubDate,
+    required this.content,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'link': link,
+        'pubDate': pubDate,
+        'content': content,
+      };
+
+  factory ArticleItem.fromJson(Map<String, dynamic> json) => ArticleItem(
+        id: json['id'] ?? '',
+        title: json['title'] ?? '',
+        link: json['link'] ?? '',
+        pubDate: json['pubDate'] ?? '',
+        content: json['content'] ?? '',
+      );
+}
+
 class RssNode {
   final String id;
   String name;
   final bool isFolder;
-  String? url; // isFolder = false の場合のみ持つ
-  List<RssNode> children; // isFolder = true の場合の子要素（マトリョーシカ）
+  String? url;
+  List<RssNode> children;
   bool isSubscribed;
 
   RssNode({
