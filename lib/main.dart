@@ -5,7 +5,7 @@ import 'views/find_view.dart';
 import 'views/timeline_view.dart';
 import 'views/my_page_view.dart';
 import 'models/rss_node.dart';
-import 'toolbar.dart';
+import 'widgets/liquid_grass_toolbar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,13 +62,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   bool _isLoading = false;
   String _searchEngineUrl = 'https://www.startpage.com/';
 
-  final List<String> _titles = const [
-    'BBS / RSS',
-    'Search',
-    'Timeline',
-    'マイページ',
-  ];
-
   void _onThemeChanged(ThemeMode mode) {
     setState(() {
       _themeMode = mode;
@@ -115,6 +108,46 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
   }
 
+  void _showAddRssDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新規RSSフィードの追加'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'RSSのURLを入力...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () {
+              final url = controller.text.trim();
+              if (url.isNotEmpty) {
+                _onAddNode(
+                  RssNode(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: url,
+                    isFolder: false,
+                    url: url,
+                  ),
+                  null,
+                );
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('追加'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
@@ -143,46 +176,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ];
 
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: AppToolbar(
-          title: _titles[_currentIndex],
-          isSearchMode: _currentIndex == 1, // Searchタブ（インデックス1）の時に変形アニメーションを起動
-        ),
-      ),
+      extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
         children: pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (int index) {
+      bottomNavigationBar: LiquidGrassToolbar(
+        currentIndex: _currentIndex,
+        onTabSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.forum_outlined),
-            selectedIcon: Icon(Icons.forum),
-            label: 'BBS / RSS',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.timeline_outlined),
-            selectedIcon: Icon(Icons.timeline),
-            label: 'Timeline',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'マイページ',
-          ),
-        ],
+        onAddRssPressed: _showAddRssDialog,
+        onFolderMenuPressed: () {
+          setState(() {
+            _currentIndex = 0;
+          });
+        },
+        onSearchSubmitted: (query) {
+          debugPrint('Search query: $query');
+        },
       ),
     );
   }
