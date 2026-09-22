@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 
 class AppToolbar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
+  final bool isSearchMode;
   final Function(String searchOrUrl)? onSearchSubmitted;
 
   const AppToolbar({
     super.key,
     required this.title,
+    this.isSearchMode = false,
     this.onSearchSubmitted,
   });
 
@@ -19,21 +21,31 @@ class AppToolbar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _AppToolbarState extends State<AppToolbar> {
-  bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _submitSearch() {
     final query = _searchController.text.trim();
     if (query.isNotEmpty && widget.onSearchSubmitted != null) {
       widget.onSearchSubmitted!(query);
-      setState(() => _isSearching = false);
-      _searchController.clear();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSearching = widget.isSearchMode;
 
     return SafeArea(
       child: Container(
@@ -57,59 +69,66 @@ class _AppToolbarState extends State<AppToolbar> {
                   width: 1.2,
                 ),
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    left: _isSearching ? -200 : 0,
-                    right: _isSearching ? MediaQuery.of(context).size.width : 48,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: _isSearching ? 0.0 : 1.0,
-                      child: Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+              child: ClipRect(
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    // 通常時タイトル：左へ滑らかにスライドアウト（幅・フォント保持）
+                    AnimatedSlide(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOutCubic,
+                      offset: isSearching ? const Offset(-1.2, 0) : Offset.zero,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: isSearching ? 0.0 : 1.0,
+                        child: Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    left: _isSearching ? 0 : MediaQuery.of(context).size.width,
-                    right: 40,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 250),
-                      opacity: _isSearching ? 1.0 : 0.0,
-                      child: TextField(
-                        controller: _searchController,
-                        autofocus: _isSearching,
-                        onSubmitted: (_) => _submitSearch(),
-                        decoration: const InputDecoration(
-                          hintText: '検索キーワードまたはURLを入力...',
-                          border: InputBorder.none,
-                          isDense: true,
+
+                    // 検索入力フォーム：右からスムーズにスライドイン
+                    AnimatedSlide(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOutCubic,
+                      offset: isSearching ? Offset.zero : const Offset(1.2, 0),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 250),
+                        opacity: isSearching ? 1.0 : 0.0,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search, size: 20, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus: isSearching,
+                                onSubmitted: (_) => _submitSearch(),
+                                decoration: const InputDecoration(
+                                  hintText: '検索キーワードまたはURLを入力...',
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            if (_searchController.text.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                              ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    child: IconButton(
-                      icon: Icon(_isSearching ? Icons.close : Icons.search),
-                      onPressed: () {
-                        setState(() {
-                          _isSearching = !_isSearching;
-                          if (!_isSearching) _searchController.clear();
-                        });
-                      },
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
