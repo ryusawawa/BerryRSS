@@ -46,8 +46,14 @@ jobs:
 
       - name: Create IPA package
         run: |
-          mkdir Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
+          mkdir -p Payload
+          APP_PATH=$(find . -name "Runner.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: Runner.app not found!"
+            exit 1
+          fi
+          echo "Found Runner.app at: $APP_PATH"
+          cp -r "$APP_PATH" Payload/
           zip -r BerryRSS.ipa Payload
 
       - name: Upload IPA Artifact
