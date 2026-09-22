@@ -4,19 +4,15 @@ import '../widgets/liquid_grass_card.dart';
 class MyPageView extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
-  final bool isGrouped;
-  final ValueChanged<bool> onGroupedChanged;
-  final String searchEngineUrl;
-  final ValueChanged<String> onSearchEngineChanged;
+  final String customUrl;
+  final ValueChanged<String> onCustomUrlChanged;
 
   const MyPageView({
     super.key,
     required this.themeMode,
     required this.onThemeChanged,
-    required this.isGrouped,
-    required this.onGroupedChanged,
-    required this.searchEngineUrl,
-    required this.onSearchEngineChanged,
+    required this.customUrl,
+    required this.onCustomUrlChanged,
   });
 
   @override
@@ -24,27 +20,94 @@ class MyPageView extends StatefulWidget {
 }
 
 class _MyPageViewState extends State<MyPageView> {
+  IconData _userIcon = Icons.person;
+
+  final List<IconData> _iconOptions = const [
+    Icons.person,
+    Icons.face,
+    Icons.account_circle,
+    Icons.pets,
+    Icons.star,
+    Icons.palette,
+  ];
+
+  void _showIconPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(16),
+        height: 180,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'アイコンを選択',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: _iconOptions.map((icon) {
+                return IconButton(
+                  icon: Icon(icon, size: 32),
+                  onPressed: () {
+                    setState(() {
+                      _userIcon = icon;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = widget.themeMode == ThemeMode.dark;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Myページ'),
+        centerTitle: true,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const SizedBox(height: 12),
           LiquidGrassCard(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                    child: Icon(
-                      Icons.person,
-                      size: 36,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  GestureDetector(
+                    onTap: _showIconPicker,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 32,
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          child: Icon(
+                            _userIcon,
+                            size: 36,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.edit, size: 12, color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -52,7 +115,7 @@ class _MyPageViewState extends State<MyPageView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Berry ユーザー',
+                        'ユーザー',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -60,7 +123,7 @@ class _MyPageViewState extends State<MyPageView> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'BerryRSS v1.0.0',
+                        '設定・アカウント管理',
                         style: TextStyle(color: Colors.grey),
                       ),
                     ],
@@ -82,12 +145,6 @@ class _MyPageViewState extends State<MyPageView> {
                       widget.onThemeChanged(val ? ThemeMode.dark : ThemeMode.light);
                     },
                   ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    title: const Text('RSSディレクトリをグループ表示'),
-                    value: widget.isGrouped,
-                    onChanged: widget.onGroupedChanged,
-                  ),
                 ],
               ),
             ),
@@ -97,15 +154,15 @@ class _MyPageViewState extends State<MyPageView> {
             child: Material(
               color: Colors.transparent,
               child: ListTile(
-                title: const Text('デフォルト検索エンジン'),
-                subtitle: Text(widget.searchEngineUrl),
+                title: const Text('カスタムフィールド (URL)'),
+                subtitle: Text(widget.customUrl),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () async {
-                  final controller = TextEditingController(text: widget.searchEngineUrl);
-                  final newEngine = await showDialog<String>(
+                  final controller = TextEditingController(text: widget.customUrl);
+                  final newUrl = await showDialog<String>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('検索エンジンの設定'),
+                      title: const Text('カスタムURLの設定'),
                       content: TextField(
                         controller: controller,
                         decoration: const InputDecoration(
@@ -124,13 +181,21 @@ class _MyPageViewState extends State<MyPageView> {
                       ],
                     ),
                   );
-                  if (newEngine != null && newEngine.isNotEmpty) {
-                    widget.onSearchEngineChanged(newEngine);
+                  if (newUrl != null && newUrl.isNotEmpty) {
+                    widget.onCustomUrlChanged(newUrl);
                   }
                 },
               ),
             ),
           ),
+          const SizedBox(height: 40),
+          const Center(
+            child: Text(
+              'BerryRSS v1.0.0',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );

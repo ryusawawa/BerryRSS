@@ -3,6 +3,7 @@ import 'src/rust/frb_generated.dart';
 import 'views/rss_view.dart';
 import 'views/find_view.dart';
 import 'views/timeline_view.dart';
+import 'views/custom_view.dart';
 import 'views/my_page_view.dart';
 import 'models/rss_node.dart';
 import 'widgets/liquid_grass_toolbar.dart';
@@ -19,14 +20,28 @@ Future<void> main() async {
   runApp(const BerryRSSApp());
 }
 
-class BerryRSSApp extends StatelessWidget {
+class BerryRSSApp extends StatefulWidget {
   const BerryRSSApp({super.key});
+
+  @override
+  State<BerryRSSApp> createState() => _BerryRSSAppState();
+}
+
+class _BerryRSSAppState extends State<BerryRSSApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _onThemeChanged(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BerryRSS',
       debugShowCheckedModeBanner: false,
+      themeMode: _themeMode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
@@ -41,13 +56,23 @@ class BerryRSSApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MainNavigationScreen(),
+      home: MainNavigationScreen(
+        themeMode: _themeMode,
+        onThemeChanged: _onThemeChanged,
+      ),
     );
   }
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeChanged;
+
+  const MainNavigationScreen({
+    super.key,
+    required this.themeMode,
+    required this.onThemeChanged,
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -57,26 +82,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   final List<RssNode> _rootNodes = [];
   final List<ArticleItem> _articles = [];
-  ThemeMode _themeMode = ThemeMode.system;
-  bool _isGrouped = false;
   bool _isLoading = false;
-  String _searchEngineUrl = 'https://www.startpage.com/';
+  String _customUrl = 'https://www.startpage.com/';
 
-  void _onThemeChanged(ThemeMode mode) {
+  void _onCustomUrlChanged(String url) {
     setState(() {
-      _themeMode = mode;
-    });
-  }
-
-  void _onGroupedChanged(bool value) {
-    setState(() {
-      _isGrouped = value;
-    });
-  }
-
-  void _onSearchEngineChanged(String url) {
-    setState(() {
-      _searchEngineUrl = url;
+      _customUrl = url;
     });
   }
 
@@ -108,70 +119,31 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
   }
 
-  void _showAddRssDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('新規RSSフィードの追加'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'RSSのURLを入力...',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () {
-              final url = controller.text.trim();
-              if (url.isNotEmpty) {
-                _onAddNode(
-                  RssNode(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: url,
-                    isFolder: false,
-                    url: url,
-                  ),
-                  null,
-                );
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('追加'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       RssView(
         rootNodes: _rootNodes,
-        isGrouped: _isGrouped,
-      ),
-      FindView(
-        rootNodes: _rootNodes,
-        onAddNode: _onAddNode,
-        onDeleteNode: _onDeleteNode,
+        isGrouped: true,
       ),
       TimelineView(
         articles: _articles,
         isLoading: _isLoading,
         onRefresh: _onRefresh,
       ),
+      FindView(
+        rootNodes: _rootNodes,
+        onAddNode: _onAddNode,
+        onDeleteNode: _onDeleteNode,
+      ),
+      CustomView(
+        customUrl: _customUrl,
+      ),
       MyPageView(
-        themeMode: _themeMode,
-        onThemeChanged: _onThemeChanged,
-        isGrouped: _isGrouped,
-        onGroupedChanged: _onGroupedChanged,
-        searchEngineUrl: _searchEngineUrl,
-        onSearchEngineChanged: _onSearchEngineChanged,
+        themeMode: widget.themeMode,
+        onThemeChanged: widget.onThemeChanged,
+        customUrl: _customUrl,
+        onCustomUrlChanged: _onCustomUrlChanged,
       ),
     ];
 
@@ -188,14 +160,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             _currentIndex = index;
           });
         },
-        onAddRssPressed: _showAddRssDialog,
-        onFolderMenuPressed: () {
-          setState(() {
-            _currentIndex = 0;
-          });
-        },
         onSearchSubmitted: (query) {
-          debugPrint('Search query: $query');
+          setState(() {
+            _currentIndex = 2; // Search画面へ移動
+          });
         },
       ),
     );
