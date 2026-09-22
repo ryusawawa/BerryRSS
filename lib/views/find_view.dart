@@ -39,10 +39,11 @@ class _FindViewState extends State<FindView> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: BrowserView(
           key: ValueKey(_activeUrl),
           url: _activeUrl,
-          showBar: true,
+          showBar: false,
         ),
       ),
     );

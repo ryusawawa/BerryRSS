@@ -5,12 +5,26 @@ class LiquidGrassToolbar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTabSelected;
   final Function(String) onSearchSubmitted;
+  final VoidCallback? onNewTab;
+  final VoidCallback? onNewIncognitoTab;
+  final VoidCallback? onShowTabs;
+  final VoidCallback? onShowBookmarks;
+  final VoidCallback? onShowDownloads;
+  final Function(String)? onShare;
+  final VoidCallback? onAddToHomeScreen;
 
   const LiquidGrassToolbar({
     super.key,
     required this.currentIndex,
     required this.onTabSelected,
     required this.onSearchSubmitted,
+    this.onNewTab,
+    this.onNewIncognitoTab,
+    this.onShowTabs,
+    this.onShowBookmarks,
+    this.onShowDownloads,
+    this.onShare,
+    this.onAddToHomeScreen,
   });
 
   @override
@@ -21,6 +35,7 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
   bool _isSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
   bool _isDesktopMode = false;
+  bool _isIncognito = false;
 
   @override
   void dispose() {
@@ -32,7 +47,7 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
     setState(() {
       _isSearchMode = true;
     });
-    widget.onTabSelected(2); // Searchタブ
+    widget.onTabSelected(2);
   }
 
   void _exitSearchMode([int? targetIndex]) {
@@ -60,7 +75,7 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
             onPressed: () {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('履歴をまとめて消去しました')),
+                const SnackBar(content: Text('履歴を消去しました')),
               );
             },
             icon: const Icon(Icons.delete_outline, color: Colors.red),
@@ -75,33 +90,93 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
     );
   }
 
+  void _showListDialog(String title, String emptyMessage) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 200,
+          child: Center(child: Text(emptyMessage)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showMoreMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final isDark = Theme.of(ctx).brightness == Brightness.dark || _isIncognito;
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               color: isDark
-                  ? Colors.black.withValues(alpha: 0.8)
+                  ? Colors.black.withValues(alpha: 0.85)
                   : Colors.white.withValues(alpha: 0.85),
               child: ListView(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 children: [
+                  if (_isIncognito)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.security, size: 16, color: Colors.purpleAccent),
+                          SizedBox(width: 6),
+                          Text('シークレットモード動作中', style: TextStyle(color: Colors.purpleAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
                   ListTile(
                     leading: const Icon(Icons.add_box_outlined),
                     title: const Text('新規タブ'),
-                    onTap: () => Navigator.pop(ctx),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      setState(() => _isIncognito = false);
+                      if (widget.onNewTab != null) {
+                        widget.onNewTab!();
+                      }
+                    },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.security),
+                    leading: const Icon(Icons.security, color: Colors.purpleAccent),
                     title: const Text('新規シークレットタブ'),
-                    onTap: () => Navigator.pop(ctx),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      setState(() => _isIncognito = true);
+                      if (widget.onNewIncognitoTab != null) {
+                        widget.onNewIncognitoTab!();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('シークレットモードで新しいタブを開きました')),
+                        );
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.tab),
+                    title: const Text('タブ一覧'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      if (widget.onShowTabs != null) {
+                        widget.onShowTabs!();
+                      } else {
+                        _showListDialog('タブ一覧', '現在開いているタブは1つです');
+                      }
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.history),
@@ -114,24 +189,64 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                   const Divider(indent: 16, endIndent: 16),
                   ListTile(
                     leading: const Icon(Icons.download),
-                    title: const Text('ダウンロード'),
-                    onTap: () => Navigator.pop(ctx),
+                    title: const Text('ダウンロード一覧'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      if (widget.onShowDownloads != null) {
+                        widget.onShowDownloads!();
+                      } else {
+                        _showListDialog('ダウンロード', 'ダウンロードしたファイルはありません');
+                      }
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.bookmark_outline),
-                    title: const Text('ブックマーク'),
-                    onTap: () => Navigator.pop(ctx),
+                    title: const Text('ブックマーク一覧'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      if (widget.onShowBookmarks != null) {
+                        widget.onShowBookmarks!();
+                      } else {
+                        _showListDialog('ブックマーク', '登録されているブックマークはありません');
+                      }
+                    },
                   ),
                   const Divider(indent: 16, endIndent: 16),
                   ListTile(
                     leading: const Icon(Icons.share_outlined),
                     title: const Text('共有'),
-                    onTap: () => Navigator.pop(ctx),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      final currentUrl = _searchController.text.trim();
+                      if (widget.onShare != null) {
+                        widget.onShare!(currentUrl);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(currentUrl.isNotEmpty ? 'URLを共有: $currentUrl' : '共有対象のURLがありません')),
+                        );
+                      }
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.add_to_home_screen),
                     title: const Text('ホーム画面に追加'),
-                    onTap: () => Navigator.pop(ctx),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      if (widget.onAddToHomeScreen != null) {
+                        widget.onAddToHomeScreen!();
+                      } else {
+                        showDialog(
+                          context: context,
+                          builder: (c) => AlertDialog(
+                            title: const Text('ホーム画面に追加'),
+                            content: const Text('ブラウザのメニューから「ホーム画面に追加」または「ショートカットを作成」を選択してください。'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK')),
+                            ],
+                          ),
+                        );
+                      }
+                    },
                   ),
                   SwitchListTile(
                     secondary: Icon(_isDesktopMode ? Icons.desktop_windows : Icons.phone_iphone),
@@ -155,7 +270,7 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark || _isIncognito;
 
     return SafeArea(
       child: Container(
@@ -171,13 +286,15 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 color: isDark
-                    ? Colors.black.withValues(alpha: 0.45)
-                    : Colors.white.withValues(alpha: 0.65),
+                    ? Colors.black.withValues(alpha: 0.6)
+                    : Colors.white.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(32),
                 border: Border.all(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : Colors.white.withValues(alpha: 0.6),
+                  color: _isIncognito
+                      ? Colors.purpleAccent.withValues(alpha: 0.5)
+                      : (isDark
+                          ? Colors.white.withValues(alpha: 0.15)
+                          : Colors.black.withValues(alpha: 0.08)),
                   width: 1.5,
                 ),
               ),
@@ -185,7 +302,6 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // 通常モード（フォルダ、タイムライン、Search変形、カスタム、Myページ）
                     AnimatedSlide(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeInOutCubic,
@@ -200,12 +316,12 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                               icon: const Icon(Icons.folder_copy_outlined),
                               selectedIcon: const Icon(Icons.folder_copy),
                               isSelected: widget.currentIndex == 0,
-                              tooltip: 'フォルダ / RSS一覧',
+                              tooltip: 'フォルダ',
                               onPressed: () => widget.onTabSelected(0),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.timeline_outlined),
-                              selectedIcon: const Icon(Icons.timeline),
+                              icon: const Icon(Icons.article_outlined),
+                              selectedIcon: const Icon(Icons.article),
                               isSelected: widget.currentIndex == 1,
                               tooltip: 'タイムライン',
                               onPressed: () => widget.onTabSelected(1),
@@ -220,22 +336,20 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                               icon: const Icon(Icons.language_outlined),
                               selectedIcon: const Icon(Icons.language),
                               isSelected: widget.currentIndex == 3,
-                              tooltip: 'カスタムURL',
+                              tooltip: 'カスタムフィールド',
                               onPressed: () => widget.onTabSelected(3),
                             ),
                             IconButton(
                               icon: const Icon(Icons.person_outline),
                               selectedIcon: const Icon(Icons.person),
                               isSelected: widget.currentIndex == 4,
-                              tooltip: 'Myページ',
+                              tooltip: 'マイページ',
                               onPressed: () => widget.onTabSelected(4),
                             ),
                           ],
                         ),
                       ),
                     ),
-
-                    // Search変形モード（検索キー入力、3点ボタン、右箱ボタン）
                     AnimatedSlide(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeInOutCubic,
