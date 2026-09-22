@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xml/xml.dart' as xml;
 import 'src/rust/frb_generated.dart';
 import 'models/rss_node.dart';
@@ -8,6 +9,7 @@ import 'views/find_view.dart';
 import 'views/timeline_view.dart';
 import 'views/rss_view.dart';
 import 'views/my_page_view.dart';
+import 'views/browser_view.dart';
 import 'widgets/liquid_grass_dock.dart';
 import 'toolbar.dart';
 
@@ -26,9 +28,34 @@ class CleanReaderApp extends StatefulWidget {
 
 class _CleanReaderAppState extends State<CleanReaderApp> {
   ThemeMode _themeMode = ThemeMode.system;
+  String _searchEngineUrl = 'https://www.startpage.com/sp/search?query=';
 
-  void _setThemeMode(ThemeMode mode) {
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeStr = prefs.getString('theme_mode') ?? 'system';
+    setState(() {
+      _searchEngineUrl = prefs.getString('search_engine_url') ?? 'https://www.startpage.com/sp/search?query=';
+      if (themeStr == 'dark') _themeMode = ThemeMode.dark;
+      if (themeStr == 'light') _themeMode = ThemeMode.light;
+    });
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', mode.name);
     setState(() => _themeMode = mode);
+  }
+
+  Future<void> _setSearchEngine(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('search_engine_url', url);
+    setState(() => _searchEngineUrl = url);
   }
 
   @override
@@ -49,7 +76,9 @@ class _CleanReaderAppState extends State<CleanReaderApp> {
       ),
       home: MainHomeScreen(
         themeMode: _themeMode,
+        searchEngineUrl: _searchEngineUrl,
         onThemeChanged: _setThemeMode,
+        onSearchEngineChanged: _setSearchEngine,
       ),
     );
   }
@@ -57,12 +86,16 @@ class _CleanReaderAppState extends State<CleanReaderApp> {
 
 class MainHomeScreen extends StatefulWidget {
   final ThemeMode themeMode;
+  final String searchEngineUrl;
   final ValueChanged<ThemeMode> onThemeChanged;
+  final ValueChanged<String> onSearchEngineChanged;
 
   const MainHomeScreen({
     super.key,
     required this.themeMode,
+    required this.searchEngineUrl,
     required this.onThemeChanged,
+    required this.onSearchEngineChanged,
   });
 
   @override
@@ -75,8 +108,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   bool _isLoadingArticles = false;
   List<ArticleItem> _fetchedArticles = [];
 
-  // ルートフォルダ構成
-  final List<RssNode> _rootNodes = [
+  List<RssNode> _rootNodes = [
     RssNode(
       id: 'mine',
       name: 'Mine',
@@ -88,10 +120,25 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSavedNodes();
+  }
+
+  Future<void> _loadSavedNodes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString('rss_root_nodes');
+    if (jsonStr != null && jsonStr.isNotEmpty) {
+      setState(() {
+        _rootNodes = RssNode.decodeList(jsonStr);
+      });
+    }
     _fetchRssArticles();
   }
 
-  // ノード配下のすべてのRSS URLを再帰的に収集
+  Future<void> _saveNodes() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('rss_root_nodes', RssNode.encodeList(_rootNodes));
+  }
+
   List<String> _extractAllUrls(List<RssNode> nodes) {
     List<String> urls = [];
     for (var node in nodes) {
@@ -104,7 +151,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
     return urls;
   }
 
-  // 実際のRSSフィードを受信して解析する処理
   Future<void> _fetchRssArticles() async {
     final urls = _extractAllUrls(_rootNodes);
     if (urls.isEmpty) {
@@ -123,8 +169,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
         final response = await http.get(Uri.parse(urlStr)).timeout(const Duration(seconds: 5));
         if (response.statusCode == 200) {
           final document = xml.XmlDocument.parse(utf8.decode(response.bodyBytes));
-          
-          // RSS 2.0 / Atom 両方の簡易パース
           final items = document.findAllElements('item');
           if (items.isNotEmpty) {
             for (var item in items) {
@@ -138,32 +182,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
                 title: title,
                 link: link,
                 pubDate: pubDate,
-                content: description.replaceAll(RegExp(r'<[^>]*>'), ''), // タグ除去
-              ));
-            }
-          } else {
-            // Atom フィード対応
-            final entries = document.findAllElements('entry');
-            for (var entry in entries) {
-              final title = entry.findElements('title').firstOrNull?.innerText ?? '無題';
-              final linkEl = entry.findElements('link').firstOrNull;
-              final link = linkEl?.getAttribute('href') ?? entry.findElements('id').firstOrNull?.innerText ?? '';
-              final updated = entry.findElements('updated').firstOrNull?.innerText ?? '';
-              final summary = entry.findElements('summary').firstOrNull?.innerText ?? 
-                              entry.findElements('content').firstOrNull?.innerText ?? '';
-
-              newArticles.add(ArticleItem(
-                id: link.isNotEmpty ? link : title,
-                title: title,
-                link: link,
-                pubDate: updated,
-                content: summary.replaceAll(RegExp(r'<[^>]*>'), ''),
+                content: description.replaceAll(RegExp(r'<[^>]*>'), ''),
               ));
             }
           }
         }
       } catch (e) {
-        debugPrint('RSS Fetch Error ($urlStr): $e');
+        debugPrint('Fetch Error: $e');
       }
     }
 
@@ -171,6 +196,23 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       _fetchedArticles = newArticles;
       _isLoadingArticles = false;
     });
+  }
+
+  void _openBrowser(String queryOrUrl) {
+    String finalUrl = queryOrUrl;
+    if (!queryOrUrl.startsWith('http://') && !queryOrUrl.startsWith('https://')) {
+      finalUrl = '${widget.searchEngineUrl}${Uri.encodeComponent(queryOrUrl)}';
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BrowserView(
+          initialUrl: finalUrl,
+          defaultSearchEngine: widget.searchEngineUrl,
+        ),
+      ),
+    );
   }
 
   void _addNode(RssNode newNode, RssNode? parentNode) {
@@ -181,6 +223,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
         parentNode.children.add(newNode);
       }
     });
+    _saveNodes();
     _fetchRssArticles();
   }
 
@@ -197,6 +240,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
     setState(() {
       removeRecursive(_rootNodes);
     });
+    _saveNodes();
     _fetchRssArticles();
   }
 
@@ -222,13 +266,18 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
       MyPageView(
         themeMode: widget.themeMode,
         isGrouped: _isGrouped,
+        searchEngineUrl: widget.searchEngineUrl,
         onThemeChanged: widget.onThemeChanged,
         onGroupedChanged: (val) => setState(() => _isGrouped = val),
+        onSearchEngineChanged: widget.onSearchEngineChanged,
       ),
     ];
 
     return Scaffold(
-      appBar: AppToolbar(title: titles[_currentIndex]),
+      appBar: AppToolbar(
+        title: titles[_currentIndex],
+        onSearchSubmitted: _openBrowser,
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: views,

@@ -1,74 +1,117 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
-const bool _useLiquidGrass = bool.fromEnvironment('ENABLE_LIQUID_GRASS');
+class AppToolbar extends StatefulWidget implements PreferredSizeWidget {
+  final String title;
+  final Function(String searchOrUrl)? onSearchSubmitted;
 
-abstract class BaseToolbar extends StatelessWidget implements PreferredSizeWidget {
-  const BaseToolbar({super.key});
+  const AppToolbar({
+    super.key,
+    required this.title,
+    this.onSearchSubmitted,
+  });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 8);
+
+  @override
+  State<AppToolbar> createState() => _AppToolbarState();
 }
 
-class AppToolbar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
-  final List<Widget>? actions;
+class _AppToolbarState extends State<AppToolbar> {
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
 
-  const AppToolbar({super.key, required this.title, this.actions});
-
-  @override
-  Widget build(BuildContext context) {
-    if (_useLiquidGrass) {
-      return LiquidGrassToolbar(title: title, actions: actions);
+  void _submitSearch() {
+    final query = _searchController.text.trim();
+    if (query.isNotEmpty && widget.onSearchSubmitted != null) {
+      widget.onSearchSubmitted!(query);
+      setState(() => _isSearching = false);
+      _searchController.clear();
     }
-    return StandardToolbar(title: title, actions: actions);
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-}
-
-class StandardToolbar extends BaseToolbar {
-  final String title;
-  final List<Widget>? actions;
-
-  const StandardToolbar({super.key, required this.title, this.actions});
-
-  @override
   Widget build(BuildContext context) {
-    return AppBar(
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      elevation: 0,
-      actions: actions,
-    );
-  }
-}
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-class LiquidGrassToolbar extends BaseToolbar {
-  final String title;
-  final List<Widget>? actions;
-
-  const LiquidGrassToolbar({super.key, required this.title, this.actions});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.03),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blueAccent,
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              height: kToolbarHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.5),
+                  width: 1.2,
                 ),
               ),
-              Row(children: actions ?? []),
-            ],
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    left: _isSearching ? -200 : 0,
+                    right: _isSearching ? MediaQuery.of(context).size.width : 48,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: _isSearching ? 0.0 : 1.0,
+                      child: Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    left: _isSearching ? 0 : MediaQuery.of(context).size.width,
+                    right: 40,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: _isSearching ? 1.0 : 0.0,
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: _isSearching,
+                        onSubmitted: (_) => _submitSearch(),
+                        decoration: const InputDecoration(
+                          hintText: '検索キーワードまたはURLを入力...',
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    child: IconButton(
+                      icon: Icon(_isSearching ? Icons.close : Icons.search),
+                      onPressed: () {
+                        setState(() {
+                          _isSearching = !_isSearching;
+                          if (!_isSearching) _searchController.clear();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
