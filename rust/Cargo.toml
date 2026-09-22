@@ -1,5 +1,5 @@
 [package]
-name = "rust_lib_tumiyomi"
+name = "rust_lib_berry_rss"
 version = "0.1.0"
 edition = "2021"
 
