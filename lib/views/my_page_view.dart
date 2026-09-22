@@ -49,9 +49,11 @@ class _MyPageViewState extends State<MyPageView> {
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       await AppStorage.saveUserAvatar(picked.path);
-      setState(() {
-        _avatarPath = picked.path;
-      });
+      if (mounted) {
+        setState(() {
+          _avatarPath = picked.path;
+        });
+      }
     }
   }
 
@@ -75,9 +77,11 @@ class _MyPageViewState extends State<MyPageView> {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
                 await AppStorage.saveUserName(newName);
-                setState(() => _userName = newName);
+                if (mounted) {
+                  setState(() => _userName = newName);
+                }
               }
-              Navigator.pop(ctx);
+              if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('保存'),
           ),
@@ -144,14 +148,14 @@ class _MyPageViewState extends State<MyPageView> {
           const SizedBox(height: 24),
           const Divider(),
           ListTile(
-            title: const Text('カスタムURL設定'),
+            title: const Text('カスタムフィールドのURL設定'),
             subtitle: Text(widget.customUrl),
             trailing: const Icon(Icons.edit),
             onTap: () {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('カスタムURL'),
+                  title: const Text('カスタムフィールドのURL設定'),
                   content: TextField(
                     controller: _urlController,
                     decoration: const InputDecoration(hintText: 'https://...'),
@@ -168,7 +172,7 @@ class _MyPageViewState extends State<MyPageView> {
                           await AppStorage.saveCustomUrl(url);
                           widget.onCustomUrlChanged(url);
                         }
-                        Navigator.pop(ctx);
+                        if (ctx.mounted) Navigator.pop(ctx);
                       },
                       child: const Text('保存'),
                     ),

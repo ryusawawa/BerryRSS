@@ -13,7 +13,7 @@ class CustomView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: BrowserView(url: customUrl),
+        child: BrowserView(url: customUrl, showBar: false),
       ),
     );
   }

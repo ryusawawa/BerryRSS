@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/rss_node.dart';
 import '../widgets/liquid_grass_card.dart';
+import 'browser_view.dart';
 
 class TimelineView extends StatelessWidget {
   final List<ArticleItem> articles;
@@ -16,85 +17,94 @@ class TimelineView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('RSSフィードを取得中...'),
-          ],
-        ),
-      );
-    }
-
-    if (articles.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.rss_feed, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text('記事がありません', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('FindタブからRSSフィードを登録してください。', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRefresh,
-              icon: const Icon(Icons.refresh),
-              label: const Text('更新する'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async => onRefresh(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12.0),
-        itemCount: articles.length,
-        itemBuilder: (context, index) {
-          final article = articles[index];
-          return LiquidGrassCard(
-            margin: const EdgeInsets.only(bottom: 12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        article.pubDate,
-                        style: const TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const Icon(Icons.open_in_new, size: 16, color: Colors.grey),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  article.title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                if (article.content.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    article.content,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                ],
-              ],
-            ),
-          );
-        },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('RSS Timeline'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: onRefresh,
+          ),
+        ],
       ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : articles.isEmpty
+              ? const Center(
+                  child: Text('記事がありません。RSSを追加するか更新してください。'),
+                )
+              : RefreshIndicator(
+                  onRefresh: () async => onRefresh(),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100),
+                    itemCount: articles.length,
+                    itemBuilder: (context, index) {
+                      final item = articles[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: LiquidGrassCard(
+                          child: InkWell(
+                            onTap: () {
+                              if (item.url.isNotEmpty) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => Scaffold(
+                                      appBar: AppBar(title: Text(item.sourceName)),
+                                      body: BrowserView(url: item.url, showBar: false),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.sourceName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.title,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (item.summary.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      item.summary,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    item.pubDate,
+                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 }
