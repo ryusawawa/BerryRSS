@@ -1,64 +1,75 @@
 import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart' as xml;
+import 'package:xml/xml.dart';
 import '../models/rss_node.dart';
 
 class RssService {
   static Future<List<ArticleItem>> fetchArticles(List<RssNode> nodes) async {
     final List<ArticleItem> articles = [];
-    final urls = _collectUrls(nodes);
+    final urls = _extractUrls(nodes);
 
-    for (final url in urls) {
+    for (final entry in urls) {
       try {
-        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-        if (res.statusCode == 200) {
-          final document = xml.XmlDocument.parse(res.body);
+        final response = await http.get(Uri.parse(entry.value));
+        if (response.statusCode == 200) {
+          final document = XmlDocument.parse(response.body);
+          
+          // RSS 2.0 (item タグ)
           final items = document.findAllElements('item');
           if (items.isNotEmpty) {
             for (final item in items) {
               final title = item.findElements('title').firstOrNull?.innerText ?? '無題';
               final link = item.findElements('link').firstOrNull?.innerText ?? '';
+              final description = item.findElements('description').firstOrNull?.innerText ?? '';
               final pubDate = item.findElements('pubDate').firstOrNull?.innerText ?? '';
-              final desc = item.findElements('description').firstOrNull?.innerText ?? '';
+
               articles.add(ArticleItem(
-                id: link.isNotEmpty ? link : DateTime.now().microsecondsSinceEpoch.toString(),
+                id: '${entry.value}_${link.isNotEmpty ? link : title}_${DateTime.now().millisecondsSinceEpoch}',
                 title: title,
-                summary: desc.replaceAll(RegExp(r'<[^>]*>'), ''),
+                summary: description,
                 url: link,
-                publishedAt: pubDate,
-                sourceName: Uri.parse(url).host,
+                sourceName: entry.key,
+                pubDate: pubDate,
               ));
             }
           } else {
+            // Atom (entry タグ)
             final entries = document.findAllElements('entry');
-            for (final entry in entries) {
-              final title = entry.findElements('title').firstOrNull?.innerText ?? '無題';
-              final linkAttr = entry.findElements('link').firstOrNull?.getAttribute('href') ?? '';
-              final updated = entry.findElements('updated').firstOrNull?.innerText ?? '';
-              final summary = entry.findElements('summary').firstOrNull?.innerText ?? '';
+            for (final item in entries) {
+              final title = item.findElements('title').firstOrNull?.innerText ?? '無題';
+              final linkAttr = item.findElements('link').firstOrNull?.getAttribute('href');
+              final linkText = item.findElements('link').firstOrNull?.innerText;
+              final link = linkAttr ?? linkText ?? '';
+              final summary = item.findElements('summary').firstOrNull?.innerText ??
+                  item.findElements('content').firstOrNull?.innerText ?? '';
+              final updated = item.findElements('updated').firstOrNull?.innerText ??
+                  item.findElements('published').firstOrNull?.innerText ?? '';
+
               articles.add(ArticleItem(
-                id: linkAttr.isNotEmpty ? linkAttr : DateTime.now().microsecondsSinceEpoch.toString(),
+                id: '${entry.value}_${link.isNotEmpty ? link : title}_${DateTime.now().millisecondsSinceEpoch}',
                 title: title,
-                summary: summary.replaceAll(RegExp(r'<[^>]*>'), ''),
-                url: linkAttr,
-                publishedAt: updated,
-                sourceName: Uri.parse(url).host,
+                summary: summary,
+                url: link,
+                sourceName: entry.key,
+                pubDate: updated,
               ));
             }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        // エラー時はスキップ
+      }
     }
+
     return articles;
   }
 
-  static List<String> _collectUrls(List<RssNode> nodes) {
-    final List<String> urls = [];
+  static List<MapEntry<String, String>> _extractUrls(List<RssNode> nodes) {
+    final List<MapEntry<String, String>> urls = [];
     for (final node in nodes) {
-      if (!node.isFolder && node.url != null && node.url!.isNotEmpty) {
-        urls.add(node.url!);
-      }
-      if (node.children.isNotEmpty) {
-        urls.addAll(_collectUrls(node.children));
+      if (node.isFolder) {
+        urls.addAll(_extractUrls(node.children));
+      } else if (node.url != null && node.url!.isNotEmpty) {
+        urls.add(MapEntry(node.name, node.url!));
       }
     }
     return urls;

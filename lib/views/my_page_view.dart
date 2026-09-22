@@ -22,7 +22,7 @@ class MyPageView extends StatefulWidget {
 }
 
 class _MyPageViewState extends State<MyPageView> {
-  final String _userName = 'Berry User';
+  String _userName = 'Berry User';
   String? _avatarPath;
   String _searchEngine = 'https://www.google.com/search?q=';
   late TextEditingController _urlController;
@@ -34,10 +34,28 @@ class _MyPageViewState extends State<MyPageView> {
     _loadSettings();
   }
 
+  @override
+  void didUpdateWidget(covariant MyPageView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.customUrl != widget.customUrl) {
+      _urlController.text = widget.customUrl;
+    }
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadSettings() async {
+    final name = await AppStorage.loadUserName();
+    final avatar = await AppStorage.loadUserAvatar();
     final engine = await AppStorage.loadSearchEngine();
     if (mounted) {
       setState(() {
+        _userName = name;
+        _avatarPath = avatar;
         _searchEngine = engine;
       });
     }
@@ -50,7 +68,36 @@ class _MyPageViewState extends State<MyPageView> {
       setState(() {
         _avatarPath = picked.path;
       });
+      await AppStorage.saveUserAvatar(picked.path);
     }
+  }
+
+  void _editUserName() {
+    final controller = TextEditingController(text: _userName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ユーザーネームの変更'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: '新しいユーザーネーム...'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('キャンセル')),
+          TextButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                setState(() => _userName = newName);
+                await AppStorage.saveUserName(newName);
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -77,7 +124,17 @@ class _MyPageViewState extends State<MyPageView> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(_userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18),
+                      onPressed: _editUserName,
+                      tooltip: 'ユーザーネームの変更',
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -181,6 +238,7 @@ class _MyPageViewState extends State<MyPageView> {
             title: const Text('カスタムフィールドのURL設定'),
             subtitle: Text(widget.customUrl.isEmpty ? '未設定（タップして設定）' : widget.customUrl),
             onTap: () {
+              _urlController.text = widget.customUrl;
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(

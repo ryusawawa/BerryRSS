@@ -1,33 +1,33 @@
 class RssNode {
   final String id;
   String name;
+  bool isFolder;
   String? url;
-  final bool isFolder;
-  final List<RssNode> children;
+  List<RssNode> children;
 
   RssNode({
     required this.id,
     required this.name,
-    this.url,
     this.isFolder = false,
+    this.url,
     List<RssNode>? children,
   }) : children = children ?? [];
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'url': url,
         'isFolder': isFolder,
-        'children': children.map((c) => c.toJson()).toList(),
+        'url': url,
+        'children': children.map((e) => e.toJson()).toList(),
       };
 
   factory RssNode.fromJson(Map<String, dynamic> json) => RssNode(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        url: json['url'] as String?,
-        isFolder: json['isFolder'] as bool? ?? false,
+        id: json['id'] ?? '',
+        name: json['name'] ?? '',
+        isFolder: json['isFolder'] ?? false,
+        url: json['url'],
         children: (json['children'] as List<dynamic>?)
-                ?.map((c) => RssNode.fromJson(c as Map<String, dynamic>))
+                ?.map((e) => RssNode.fromJson(e))
                 .toList() ??
             [],
       );
@@ -37,41 +37,38 @@ class ArticleItem {
   final String id;
   final String title;
   final String summary;
-  final String content;
   final String url;
-  final String publishedAt;
+  final String pubDate;
   final String sourceName;
+  bool isFavorite;
 
   ArticleItem({
     required this.id,
     required this.title,
     required this.summary,
-    this.content = '',
     required this.url,
-    required this.publishedAt,
+    required this.pubDate,
     required this.sourceName,
+    this.isFavorite = false,
   });
-
-  // timeline_view等の互換性のためのゲッター
-  String get pubDate => publishedAt;
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
         'summary': summary,
-        'content': content,
         'url': url,
-        'publishedAt': publishedAt,
+        'pubDate': pubDate,
         'sourceName': sourceName,
+        'isFavorite': isFavorite,
       };
 
   factory ArticleItem.fromJson(Map<String, dynamic> json) => ArticleItem(
-        id: json['id'] as String? ?? '',
-        title: json['title'] as String? ?? '',
-        summary: json['summary'] as String? ?? '',
-        content: json['content'] as String? ?? '',
-        url: json['url'] as String? ?? '',
-        publishedAt: json['publishedAt'] as String? ?? json['pubDate'] as String? ?? '',
-        sourceName: json['sourceName'] as String? ?? '',
+        id: json['id'] ?? '',
+        title: json['title'] ?? '',
+        summary: json['summary'] ?? '',
+        url: json['url'] ?? '',
+        pubDate: json['pubDate'] ?? '',
+        sourceName: json['sourceName'] ?? '',
+        isFavorite: json['isFavorite'] ?? false,
       );
 }

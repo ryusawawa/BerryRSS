@@ -32,6 +32,27 @@ class BerryRSSApp extends StatefulWidget {
 class _BerryRSSAppState extends State<BerryRSSApp> {
   ThemeMode _themeMode = ThemeMode.system;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final modeStr = await AppStorage.loadThemeMode();
+    if (mounted) {
+      setState(() {
+        if (modeStr == 'dark') {
+          _themeMode = ThemeMode.dark;
+        } else if (modeStr == 'light') {
+          _themeMode = ThemeMode.light;
+        } else {
+          _themeMode = ThemeMode.system;
+        }
+      });
+    }
+  }
+
   void _onThemeChanged(ThemeMode mode) {
     setState(() {
       _themeMode = mode;
@@ -81,12 +102,13 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 0;
+  // 起動時は自動的に Search モード (インデックス 2) で開く
+  int _currentIndex = 2;
   List<RssNode> _rootNodes = [];
   List<ArticleItem> _articles = [];
   bool _isLoading = false;
-  String _customUrl = 'https://www.startpage.com/';
-  String _searchQueryUrl = 'https://www.startpage.com/';
+  String _customUrl = '';
+  String _searchQueryUrl = 'https://www.google.com';
 
   @override
   void initState() {
@@ -97,9 +119,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Future<void> _loadSavedData() async {
     final nodes = await AppStorage.loadNodes();
     final customUrl = await AppStorage.loadCustomUrl();
+    final searchEngine = await AppStorage.loadSearchEngine();
     setState(() {
       _rootNodes = nodes;
       _customUrl = customUrl;
+      _searchQueryUrl = searchEngine.isNotEmpty ? searchEngine.replaceAll('?q=', '') : 'https://www.google.com';
     });
     _fetchRssArticles();
   }
@@ -173,12 +197,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             _currentIndex = index;
           });
         },
-        onSearchSubmitted: (query) {
+        onSearchSubmitted: (query) async {
+          final engineBase = await AppStorage.loadSearchEngine();
           setState(() {
             if (query.startsWith('http://') || query.startsWith('https://')) {
               _searchQueryUrl = query;
             } else {
-              _searchQueryUrl = 'https://www.startpage.com/sp/search?query=${Uri.encodeComponent(query)}';
+              _searchQueryUrl = '$engineBase${Uri.encodeComponent(query)}';
             }
             _currentIndex = 2;
           });

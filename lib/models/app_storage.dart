@@ -53,6 +53,7 @@ class AppStorage {
   static const _keyRssTree = 'rss_tree_json';
   static const _keyHistory = 'history_json';
   static const _keyBookmarks = 'bookmarks_json';
+  static const _keyStarredArticles = 'starred_articles_json';
 
   static Future<String> loadCustomUrl() async {
     final prefs = await SharedPreferences.getInstance();
@@ -127,6 +128,20 @@ class AppStorage {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(items.map((e) => e.toJson()).toList());
     await prefs.setString(_keyBookmarks, raw);
+  }
+
+  static Future<List<BookmarkItem>> loadStarredArticles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyStarredArticles);
+    if (raw == null) return [];
+    final List<dynamic> decoded = jsonDecode(raw);
+    return decoded.map((e) => BookmarkItem.fromJson(e)).toList();
+  }
+
+  static Future<void> saveStarredArticles(List<BookmarkItem> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonEncode(items.map((e) => e.toJson()).toList());
+    await prefs.setString(_keyStarredArticles, raw);
   }
 
   static Future<String> loadUserName() async {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'browser_view.dart';
 
-class CustomView extends StatelessWidget {
+class CustomView extends StatefulWidget {
   final String customUrl;
 
   const CustomView({
@@ -10,29 +10,22 @@ class CustomView extends StatelessWidget {
   });
 
   @override
+  State<CustomView> createState() => _CustomViewState();
+}
+
+class _CustomViewState extends State<CustomView> {
+  @override
   Widget build(BuildContext context) {
-    if (customUrl.trim().isEmpty) {
+    if (widget.customUrl.isEmpty) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('カスタムフィールド'),
+          title: const Text('カスタムビュー'),
           centerTitle: true,
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.link_off, size: 64, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 16),
-              const Text(
-                'My Pageから編集してね☆',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'URLを設定すると、ここにWebページが表示されます。',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-            ],
+        body: const Center(
+          child: Text(
+            'マイページでカスタムURLが設定されていません。\nマイページからお好みのURLを設定してください。',
+            textAlign: TextAlign.center,
           ),
         ),
       );
@@ -40,7 +33,11 @@ class CustomView extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: BrowserView(url: customUrl, showBar: false),
+        child: BrowserView(
+          key: ValueKey(widget.customUrl),
+          url: widget.customUrl,
+          showBar: true,
+        ),
       ),
     );
   }

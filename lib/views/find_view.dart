@@ -4,18 +4,12 @@ import 'browser_view.dart';
 
 class FindView extends StatefulWidget {
   final List<RssNode> rootNodes;
-  final Function(RssNode node, RssNode? parent)? onAddNode;
-  final Function(String id)? onDeleteNode;
   final String currentQuery;
-  final bool isIncognito;
 
   const FindView({
     super.key,
     required this.rootNodes,
-    this.onAddNode,
-    this.onDeleteNode,
-    this.currentQuery = 'https://www.google.com',
-    this.isIncognito = false,
+    required this.currentQuery,
   });
 
   @override
@@ -23,13 +17,32 @@ class FindView extends StatefulWidget {
 }
 
 class _FindViewState extends State<FindView> {
+  late String _activeUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeUrl = widget.currentQuery.isNotEmpty ? widget.currentQuery : 'https://www.google.com';
+  }
+
+  @override
+  void didUpdateWidget(covariant FindView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentQuery.isNotEmpty && widget.currentQuery != oldWidget.currentQuery) {
+      setState(() {
+        _activeUrl = widget.currentQuery;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: BrowserView(
-          url: widget.currentQuery,
-          isIncognito: widget.isIncognito,
+          key: ValueKey(_activeUrl),
+          url: _activeUrl,
+          showBar: true,
         ),
       ),
     );
