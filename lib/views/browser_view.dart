@@ -45,24 +45,39 @@ class _BrowserViewState extends State<BrowserView> {
   @override
   void initState() {
     super.initState();
-    _createNewTab(widget.initialUrl.isNotEmpty ? widget.initialUrl : widget.defaultSearchEngine);
+    final startUrl = _getValidUrl(
+      widget.initialUrl.isNotEmpty ? widget.initialUrl : widget.defaultSearchEngine,
+    );
+    _createNewTab(startUrl);
+  }
+
+  String _getValidUrl(String input) {
+    if (input.isEmpty) return 'https://www.google.com';
+    if (!input.startsWith('http://') && !input.startsWith('https://')) {
+      return 'https://$input';
+    }
+    return input;
   }
 
   WebTab _createTabObject(String url, bool isIncognito) {
     final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final validUrl = _getValidUrl(url);
+
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String u) {
-            setState(() {
-              if (_tabs.isNotEmpty && _activeTabIndex < _tabs.length) {
-                _tabs[_activeTabIndex].url = u;
-              }
-            });
+            if (mounted) {
+              setState(() {
+                if (_tabs.isNotEmpty && _activeTabIndex < _tabs.length) {
+                  _tabs[_activeTabIndex].url = u;
+                }
+              });
+            }
           },
           onPageFinished: (String u) async {
-            if (_tabs.isNotEmpty && _activeTabIndex < _tabs.length) {
+            if (mounted && _tabs.isNotEmpty && _activeTabIndex < _tabs.length) {
               final activeTab = _tabs[_activeTabIndex];
               final title = await activeTab.controller.getTitle() ?? u;
               setState(() {
@@ -74,13 +89,18 @@ class _BrowserViewState extends State<BrowserView> {
               }
             }
           },
+          onWebResourceError: (WebResourceError error) {
+            debugPrint('WebView Error: ${error.description}');
+          },
         ),
-      )
-      ..loadRequest(Uri.parse(url));
+      );
+
+    // URL読み込みを実行
+    controller.loadRequest(Uri.parse(validUrl));
 
     return WebTab(
       id: id,
-      url: url,
+      url: validUrl,
       title: '読み込み中...',
       isIncognito: isIncognito,
       controller: controller,
@@ -106,6 +126,7 @@ class _BrowserViewState extends State<BrowserView> {
   }
 
   void _toggleDesktopMode() {
+    if (_tabs.isEmpty) return;
     setState(() => _isDesktopMode = !_isDesktopMode);
     final activeTab = _tabs[_activeTabIndex];
     final userAgent = _isDesktopMode
@@ -187,13 +208,17 @@ class _BrowserViewState extends State<BrowserView> {
   @override
   Widget build(BuildContext context) {
     if (_tabs.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     final activeTab = _tabs[_activeTabIndex];
 
     return Scaffold(
-      body: WebViewWidget(controller: activeTab.controller),
+      body: SafeArea(
+        child: WebViewWidget(controller: activeTab.controller),
+      ),
       bottomNavigationBar: SafeArea(
         child: Container(
           height: 52,
@@ -285,21 +310,9 @@ class _BrowserViewState extends State<BrowserView> {
                   ),
                   const PopupMenuDivider(),
                   const PopupMenuItem<String>(
-                    value: 'history',
-                    child: Row(
-                      children: [Icon(Icons.history), SizedBox(width: 12), Text('履歴')],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
                     value: 'bookmark',
                     child: Row(
                       children: [Icon(Icons.bookmark_border), SizedBox(width: 12), Text('ブックマーク')],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'download',
-                    child: Row(
-                      children: [Icon(Icons.download), SizedBox(width: 12), Text('ダウンロード')],
                     ),
                   ),
                   const PopupMenuItem<String>(
