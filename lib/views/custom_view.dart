@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'browser_view.dart';
 
 class CustomView extends StatelessWidget {
   final String customUrl;
@@ -11,26 +12,8 @@ class CustomView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('カスタムフィールド'),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.language, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(
-                '設定されたカスタムURL:\n$customUrl',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
-        ),
+      body: SafeArea(
+        child: BrowserView(url: customUrl),
       ),
     );
   }

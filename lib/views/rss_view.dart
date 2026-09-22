@@ -2,88 +2,120 @@ import 'package:flutter/material.dart';
 import '../models/rss_node.dart';
 import '../widgets/liquid_grass_card.dart';
 
-class RssView extends StatelessWidget {
+class RssView extends StatefulWidget {
   final List<RssNode> rootNodes;
   final bool isGrouped;
+  final Function(RssNode node, RssNode? parent)? onAddNode;
 
   const RssView({
     super.key,
     required this.rootNodes,
     required this.isGrouped,
+    this.onAddNode,
   });
 
-  List<RssNode> _getAllFeeds(List<RssNode> nodes) {
-    List<RssNode> result = [];
-    for (var node in nodes) {
-      if (!node.isFolder) {
-        result.add(node);
-      } else {
-        result.addAll(_getAllFeeds(node.children));
-      }
-    }
-    return result;
+  @override
+  State<RssView> createState() => _RssViewState();
+}
+
+class _RssViewState extends State<RssView> {
+  void _showAddDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新規RSS/フォルダの追加'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: '名前またはRSSのURLを入力...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty && widget.onAddNode != null) {
+                final isUrl = text.startsWith('http://') || text.startsWith('https://');
+                widget.onAddNode!(
+                  RssNode(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: text,
+                    isFolder: !isUrl,
+                    url: isUrl ? text : null,
+                  ),
+                  null,
+                );
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('追加'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (rootNodes.isEmpty) {
-      return const Center(
-        child: Text('FindタブからジャンルやRSSを登録してください'),
-      );
-    }
-
-    final displayItems = isGrouped ? rootNodes : _getAllFeeds(rootNodes);
-
-    if (displayItems.isEmpty) {
-      return const Center(child: Text('登録されているフィードがありません'));
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(12.0),
-      itemCount: displayItems.length,
-      itemBuilder: (context, index) {
-        final node = displayItems[index];
-        return LiquidGrassCard(
-          margin: const EdgeInsets.only(bottom: 10.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (node.isFolder ? Colors.amber : Colors.orange).withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  node.isFolder ? Icons.folder : Icons.rss_feed,
-                  color: node.isFolder ? Colors.amber : Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      node.name,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      node.isFolder
-                          ? '${node.children.length} 件のアイテム (フォルダまとめ表示)'
-                          : (node.url ?? 'URLなし'),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('フォルダ / RSS一覧'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'フォルダ/RSSを追加',
+            onPressed: _showAddDialog,
           ),
-        );
-      },
+        ],
+      ),
+      body: widget.rootNodes.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.folder_open, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text('登録されたRSSやフォルダはありません'),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _showAddDialog,
+                    icon: const Icon(Icons.add),
+                    label: const Text('RSS/フォルダを追加する'),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: widget.rootNodes.length,
+              itemBuilder: (context, index) {
+                final node = widget.rootNodes[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: LiquidGrassCard(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        leading: Icon(
+                          node.isFolder ? Icons.folder : Icons.rss_feed,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(node.name),
+                        subtitle: node.url != null ? Text(node.url!) : null,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {},
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

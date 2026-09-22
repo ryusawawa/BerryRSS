@@ -84,6 +84,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<ArticleItem> _articles = [];
   bool _isLoading = false;
   String _customUrl = 'https://www.startpage.com/';
+  String _searchQueryUrl = 'https://www.google.com';
 
   void _onCustomUrlChanged(String url) {
     setState(() {
@@ -125,6 +126,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       RssView(
         rootNodes: _rootNodes,
         isGrouped: true,
+        onAddNode: _onAddNode,
       ),
       TimelineView(
         articles: _articles,
@@ -135,6 +137,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         rootNodes: _rootNodes,
         onAddNode: _onAddNode,
         onDeleteNode: _onDeleteNode,
+        currentQuery: _searchQueryUrl,
       ),
       CustomView(
         customUrl: _customUrl,
@@ -162,7 +165,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         },
         onSearchSubmitted: (query) {
           setState(() {
-            _currentIndex = 2; // Search画面へ移動
+            if (query.startsWith('http://') || query.startsWith('https://')) {
+              _searchQueryUrl = query;
+            } else {
+              _searchQueryUrl = 'https://www.google.com/search?q=${Uri.encodeComponent(query)}';
+            }
+            _currentIndex = 2; // Search画面へ切り替え
           });
         },
       ),
