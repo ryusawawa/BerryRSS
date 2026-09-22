@@ -4,13 +4,11 @@ import '../widgets/liquid_grass_card.dart';
 
 class RssView extends StatefulWidget {
   final List<RssNode> rootNodes;
-  final bool isGrouped;
   final Function(RssNode node, RssNode? parent)? onAddNode;
 
   const RssView({
     super.key,
     required this.rootNodes,
-    required this.isGrouped,
     this.onAddNode,
   });
 
@@ -20,42 +18,82 @@ class RssView extends StatefulWidget {
 
 class _RssViewState extends State<RssView> {
   void _showAddDialog() {
-    final controller = TextEditingController();
+    final nameController = TextEditingController();
+    final urlController = TextEditingController();
+    bool isFolder = false;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('新規RSS/フォルダの追加'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: '名前またはRSSのURLを入力...',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () {
-              final text = controller.text.trim();
-              if (text.isNotEmpty && widget.onAddNode != null) {
-                final isUrl = text.startsWith('http://') || text.startsWith('https://');
-                widget.onAddNode!(
-                  RssNode(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    name: text,
-                    isFolder: !isUrl,
-                    url: isUrl ? text : null,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('追加'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('RSSフィード'),
+                    selected: !isFolder,
+                    onSelected: (selected) {
+                      if (selected) setDialogState(() => isFolder = false);
+                    },
                   ),
-                  null,
-                );
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('追加'),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('フォルダ'),
+                    selected: isFolder,
+                    onSelected: (selected) {
+                      if (selected) setDialogState(() => isFolder = true);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: isFolder ? 'フォルダ名' : 'サイト名/タイトル',
+                ),
+              ),
+              if (!isFolder) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'RSS/Atom URL',
+                    hintText: 'https://example.com/rss.xml',
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final url = urlController.text.trim();
+                if (name.isNotEmpty && widget.onAddNode != null) {
+                  widget.onAddNode!(
+                    RssNode(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      name: name,
+                      isFolder: isFolder,
+                      url: isFolder ? null : url,
+                    ),
+                    null,
+                  );
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('追加'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -69,25 +107,19 @@ class _RssViewState extends State<RssView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'フォルダ/RSSを追加',
+            tooltip: '追加',
             onPressed: _showAddDialog,
           ),
         ],
       ),
       body: widget.rootNodes.isEmpty
-          ? Center(
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.folder_open, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text('登録されたRSSやフォルダはありません'),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: _showAddDialog,
-                    icon: const Icon(Icons.add),
-                    label: const Text('RSS/フォルダを追加する'),
-                  ),
+                  Icon(Icons.folder_open, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('右上ボタン(+)からRSSやフォルダを追加してください'),
                 ],
               ),
             )
@@ -108,7 +140,8 @@ class _RssViewState extends State<RssView> {
                         ),
                         title: Text(node.name),
                         subtitle: node.url != null ? Text(node.url!) : null,
-                        trailing: const Icon(Icons.chevron_right),
+                        // フォルダの場合のみ右矢印（chevron_right）を表示
+                        trailing: node.isFolder ? const Icon(Icons.chevron_right) : null,
                         onTap: () {},
                       ),
                     ),

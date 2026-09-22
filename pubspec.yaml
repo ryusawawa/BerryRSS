@@ -10,13 +10,15 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  http: ^1.2.2
-  xml: ^6.5.0
-  shared_preferences: ^2.3.2
-  webview_flutter: ^4.10.0
-  share_plus: ^10.1.2
-  image_picker: ^1.1.2
+  http: ^1.6.0
+  xml: ^7.0.1
+  shared_preferences: ^2.5.5
+  webview_flutter: ^4.14.1
+  share_plus: ^13.3.0
+  image_picker: ^1.2.3
   flutter_rust_bridge: 2.13.0
+  http_parser: ^4.1.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

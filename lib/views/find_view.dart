@@ -7,6 +7,7 @@ class FindView extends StatefulWidget {
   final Function(RssNode node, RssNode? parent)? onAddNode;
   final Function(String id)? onDeleteNode;
   final String currentQuery;
+  final bool isIncognito;
 
   const FindView({
     super.key,
@@ -14,6 +15,7 @@ class FindView extends StatefulWidget {
     this.onAddNode,
     this.onDeleteNode,
     this.currentQuery = 'https://www.google.com',
+    this.isIncognito = false,
   });
 
   @override
@@ -25,7 +27,10 @@ class _FindViewState extends State<FindView> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: BrowserView(url: widget.currentQuery),
+        child: BrowserView(
+          url: widget.currentQuery,
+          isIncognito: widget.isIncognito,
+        ),
       ),
     );
   }

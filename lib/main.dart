@@ -6,6 +6,8 @@ import 'views/timeline_view.dart';
 import 'views/custom_view.dart';
 import 'views/my_page_view.dart';
 import 'models/rss_node.dart';
+import 'models/app_storage.dart';
+import 'services/rss_service.dart';
 import 'widgets/liquid_grass_toolbar.dart';
 
 Future<void> main() async {
@@ -80,11 +82,38 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  final List<RssNode> _rootNodes = [];
-  final List<ArticleItem> _articles = [];
+  List<RssNode> _rootNodes = [];
+  List<ArticleItem> _articles = [];
   bool _isLoading = false;
   String _customUrl = 'https://www.startpage.com/';
-  String _searchQueryUrl = 'https://www.google.com';
+  String _searchQueryUrl = 'https://www.startpage.com/';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    final nodes = await AppStorage.loadNodes();
+    final customUrl = await AppStorage.loadCustomUrl();
+    setState(() {
+      _rootNodes = nodes;
+      _customUrl = customUrl;
+    });
+    _fetchRssArticles();
+  }
+
+  Future<void> _fetchRssArticles() async {
+    setState(() => _isLoading = true);
+    final articles = await RssService.fetchArticles(_rootNodes);
+    if (mounted) {
+      setState(() {
+        _articles = articles;
+        _isLoading = false;
+      });
+    }
+  }
 
   void _onCustomUrlChanged(String url) {
     setState(() {
@@ -100,24 +129,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         _rootNodes.add(node);
       }
     });
-  }
-
-  void _onDeleteNode(String id) {
-    setState(() {
-      _rootNodes.removeWhere((node) => node.id == id);
-    });
-  }
-
-  Future<void> _onRefresh() async {
-    setState(() {
-      _isLoading = true;
-    });
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    AppStorage.saveNodes(_rootNodes);
+    _fetchRssArticles();
   }
 
   @override
@@ -125,18 +138,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final List<Widget> pages = [
       RssView(
         rootNodes: _rootNodes,
-        isGrouped: true,
         onAddNode: _onAddNode,
       ),
       TimelineView(
         articles: _articles,
         isLoading: _isLoading,
-        onRefresh: _onRefresh,
+        onRefresh: _fetchRssArticles,
       ),
       FindView(
         rootNodes: _rootNodes,
-        onAddNode: _onAddNode,
-        onDeleteNode: _onDeleteNode,
         currentQuery: _searchQueryUrl,
       ),
       CustomView(
@@ -168,9 +178,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             if (query.startsWith('http://') || query.startsWith('https://')) {
               _searchQueryUrl = query;
             } else {
-              _searchQueryUrl = 'https://www.google.com/search?q=${Uri.encodeComponent(query)}';
+              _searchQueryUrl = 'https://www.startpage.com/sp/search?query=${Uri.encodeComponent(query)}';
             }
-            _currentIndex = 2; // Search画面へ切り替え
+            _currentIndex = 2;
           });
         },
       ),

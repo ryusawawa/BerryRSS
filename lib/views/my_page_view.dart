@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../widgets/liquid_grass_card.dart';
+import 'package:image_picker/image_picker.dart';
+import '../models/app_storage.dart';
 
 class MyPageView extends StatefulWidget {
   final ThemeMode themeMode;
@@ -20,182 +22,171 @@ class MyPageView extends StatefulWidget {
 }
 
 class _MyPageViewState extends State<MyPageView> {
-  IconData _userIcon = Icons.person;
+  String _userName = 'Berry User';
+  String? _avatarPath;
+  late TextEditingController _urlController;
 
-  final List<IconData> _iconOptions = const [
-    Icons.person,
-    Icons.face,
-    Icons.account_circle,
-    Icons.pets,
-    Icons.star,
-    Icons.palette,
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _urlController = TextEditingController(text: widget.customUrl);
+    _loadUserData();
+  }
 
-  void _showIconPicker() {
-    showModalBottomSheet(
+  Future<void> _loadUserData() async {
+    final name = await AppStorage.loadUserName();
+    final avatar = await AppStorage.loadUserAvatar();
+    if (mounted) {
+      setState(() {
+        _userName = name;
+        _avatarPath = avatar;
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      await AppStorage.saveUserAvatar(picked.path);
+      setState(() {
+        _avatarPath = picked.path;
+      });
+    }
+  }
+
+  void _editUserName() {
+    final controller = TextEditingController(text: _userName);
+    showDialog(
       context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(16),
-        height: 180,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'アイコンを選択',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: _iconOptions.map((icon) {
-                return IconButton(
-                  icon: Icon(icon, size: 32),
-                  onPressed: () {
-                    setState(() {
-                      _userIcon = icon;
-                    });
-                    Navigator.pop(ctx);
-                  },
-                );
-              }).toList(),
-            ),
-          ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('ユーザー名の変更'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: '新しい名前...'),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                await AppStorage.saveUserName(newName);
+                setState(() => _userName = newName);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.themeMode == ThemeMode.dark;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Myページ'),
+        title: const Text('マイページ'),
         centerTitle: true,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          LiquidGrassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: _showIconPicker,
-                    child: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                          child: Icon(
-                            _userIcon,
-                            size: 36,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.blue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.edit, size: 12, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          Center(
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
                     children: [
-                      Text(
-                        'ユーザー',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      CircleAvatar(
+                        radius: 44,
+                        backgroundImage: _avatarPath != null && File(_avatarPath!).existsSync()
+                            ? FileImage(File(_avatarPath!)) as ImageProvider
+                            : null,
+                        child: _avatarPath == null
+                            ? const Icon(Icons.person, size: 44)
+                            : null,
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        '設定・アカウント管理',
-                        style: TextStyle(color: Colors.grey),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                        ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          LiquidGrassCard(
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    title: const Text('ダークモード'),
-                    value: isDark,
-                    onChanged: (val) {
-                      widget.onThemeChanged(val ? ThemeMode.dark : ThemeMode.light);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          LiquidGrassCard(
-            child: Material(
-              color: Colors.transparent,
-              child: ListTile(
-                title: const Text('カスタムフィールド (URL)'),
-                subtitle: Text(widget.customUrl),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () async {
-                  final controller = TextEditingController(text: widget.customUrl);
-                  final newUrl = await showDialog<String>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('カスタムURLの設定'),
-                      content: TextField(
-                        controller: controller,
-                        decoration: const InputDecoration(
-                          hintText: 'https://...',
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('キャンセル'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-                          child: const Text('保存'),
-                        ),
-                      ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _userName,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                  );
-                  if (newUrl != null && newUrl.isNotEmpty) {
-                    widget.onCustomUrlChanged(newUrl);
-                  }
-                },
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18),
+                      onPressed: _editUserName,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          ListTile(
+            title: const Text('カスタムURL設定'),
+            subtitle: Text(widget.customUrl),
+            trailing: const Icon(Icons.edit),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('カスタムURL'),
+                  content: TextField(
+                    controller: _urlController,
+                    decoration: const InputDecoration(hintText: 'https://...'),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('キャンセル'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final url = _urlController.text.trim();
+                        if (url.isNotEmpty) {
+                          await AppStorage.saveCustomUrl(url);
+                          widget.onCustomUrlChanged(url);
+                        }
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('保存'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(
+              child: Text(
+                'BerryRSS v1.0.0 ©Berry',
+                style: TextStyle(color: Colors.grey, fontSize: 13),
               ),
             ),
           ),
-          const SizedBox(height: 40),
-          const Center(
-            child: Text(
-              'BerryRSS v1.0.0',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 20),
         ],
       ),
     );
