@@ -34,13 +34,49 @@ class LiquidGrassToolbar extends StatefulWidget {
 class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
   bool _isSearchMode = false;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   bool _isDesktopMode = false;
   bool _isIncognito = false;
+  String _rawUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.addListener(_onFocusChange);
+    _searchController.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   void dispose() {
+    _searchFocusNode.removeListener(_onFocusChange);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (_searchFocusNode.hasFocus) {
+      if (_searchController.text.isEmpty && _rawUrl.isNotEmpty) {
+        _searchController.text = _rawUrl;
+      }
+    } else {
+      if (_searchController.text == _rawUrl) {
+        _searchController.text = _getDomainOnly(_rawUrl);
+      }
+    }
+    setState(() {});
+  }
+
+  String _getDomainOnly(String url) {
+    if (url.isEmpty) return '';
+    try {
+      final uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
+      return uri.host.isNotEmpty ? uri.host : url;
+    } catch (_) {
+      return url;
+    }
   }
 
   void _enterSearchMode() {
@@ -48,12 +84,13 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
       _isSearchMode = true;
     });
     widget.onTabSelected(2);
+    _searchFocusNode.requestFocus();
   }
 
   void _exitSearchMode([int? targetIndex]) {
+    _searchFocusNode.unfocus();
     setState(() {
       _isSearchMode = false;
-      _searchController.clear();
     });
     if (targetIndex != null) {
       widget.onTabSelected(targetIndex);
@@ -109,7 +146,6 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
       ),
     );
   }
-
   void _showMoreMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -136,7 +172,11 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                         children: [
                           Icon(Icons.security, size: 16, color: Colors.purpleAccent),
                           SizedBox(width: 6),
-                          Text('シークレットモード動作中', style: TextStyle(color: Colors.purpleAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text('シークレットモード動作中',
+                              style: TextStyle(
+                                  color: Colors.purpleAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -217,12 +257,15 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                     title: const Text('共有'),
                     onTap: () {
                       Navigator.pop(ctx);
-                      final currentUrl = _searchController.text.trim();
+                      final currentUrl = _rawUrl.isNotEmpty ? _rawUrl : _searchController.text.trim();
                       if (widget.onShare != null) {
                         widget.onShare!(currentUrl);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(currentUrl.isNotEmpty ? 'URLを共有: $currentUrl' : '共有対象のURLがありません')),
+                          SnackBar(
+                              content: Text(currentUrl.isNotEmpty
+                                  ? 'URLを共有: $currentUrl'
+                                  : '共有対象のURLがありません')),
                         );
                       }
                     },
@@ -239,9 +282,12 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                           context: context,
                           builder: (c) => AlertDialog(
                             title: const Text('ホーム画面に追加'),
-                            content: const Text('ブラウザのメニューから「ホーム画面に追加」または「ショートカットを作成」を選択してください。'),
+                            content: const Text(
+                                'ブラウザのメニューから「ホーム画面に追加」または「ショートカットを作成」を選択してください。'),
                             actions: [
-                              TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK')),
+                              TextButton(
+                                  onPressed: () => Navigator.pop(c),
+                                  child: const Text('OK')),
                             ],
                           ),
                         );
@@ -249,7 +295,8 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
                     },
                   ),
                   SwitchListTile(
-                    secondary: Icon(_isDesktopMode ? Icons.desktop_windows : Icons.phone_iphone),
+                    secondary: Icon(
+                        _isDesktopMode ? Icons.desktop_windows : Icons.phone_iphone),
                     title: Text(_isDesktopMode ? 'PC版サイトを表示中' : 'モバイル版サイトを表示中'),
                     value: _isDesktopMode,
                     onChanged: (val) {
@@ -267,137 +314,146 @@ class _LiquidGrassToolbarState extends State<LiquidGrassToolbar> {
       },
     );
   }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark || _isIncognito;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        height: 64,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeInOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.black.withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: _isIncognito
-                      ? Colors.purpleAccent.withValues(alpha: 0.5)
-                      : (isDark
-                          ? Colors.white.withValues(alpha: 0.15)
-                          : Colors.black.withValues(alpha: 0.08)),
-                  width: 1.5,
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          height: 64,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeInOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.6)
+                      : Colors.white.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: _isIncognito
+                        ? Colors.purpleAccent.withValues(alpha: 0.5)
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.15)
+                            : Colors.black.withValues(alpha: 0.08)),
+                    width: 1.5,
+                  ),
                 ),
-              ),
-              child: ClipRect(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeInOutCubic,
-                      offset: _isSearchMode ? const Offset(0, 1.5) : Offset.zero,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 250),
-                        opacity: _isSearchMode ? 0.0 : 1.0,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.folder_copy_outlined),
-                              selectedIcon: const Icon(Icons.folder_copy),
-                              isSelected: widget.currentIndex == 0,
-                              tooltip: 'フォルダ',
-                              onPressed: () => widget.onTabSelected(0),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.article_outlined),
-                              selectedIcon: const Icon(Icons.article),
-                              isSelected: widget.currentIndex == 1,
-                              tooltip: 'タイムライン',
-                              onPressed: () => widget.onTabSelected(1),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.search, size: 28),
-                              isSelected: widget.currentIndex == 2,
-                              tooltip: '検索',
-                              onPressed: _enterSearchMode,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.language_outlined),
-                              selectedIcon: const Icon(Icons.language),
-                              isSelected: widget.currentIndex == 3,
-                              tooltip: 'カスタムフィールド',
-                              onPressed: () => widget.onTabSelected(3),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.person_outline),
-                              selectedIcon: const Icon(Icons.person),
-                              isSelected: widget.currentIndex == 4,
-                              tooltip: 'マイページ',
-                              onPressed: () => widget.onTabSelected(4),
-                            ),
-                          ],
+                child: ClipRect(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AnimatedSlide(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeInOutCubic,
+                        offset: _isSearchMode ? const Offset(0, 1.5) : Offset.zero,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 250),
+                          opacity: _isSearchMode ? 0.0 : 1.0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.folder_copy_outlined),
+                                selectedIcon: const Icon(Icons.folder_copy),
+                                isSelected: widget.currentIndex == 0,
+                                tooltip: 'フォルダ',
+                                onPressed: () => widget.onTabSelected(0),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.article_outlined),
+                                selectedIcon: const Icon(Icons.article),
+                                isSelected: widget.currentIndex == 1,
+                                tooltip: 'タイムライン',
+                                onPressed: () => widget.onTabSelected(1),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.search, size: 28),
+                                isSelected: widget.currentIndex == 2,
+                                tooltip: '検索',
+                                onPressed: _enterSearchMode,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.language_outlined),
+                                selectedIcon: const Icon(Icons.language),
+                                isSelected: widget.currentIndex == 3,
+                                tooltip: 'カスタムフィールド',
+                                onPressed: () => widget.onTabSelected(3),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.person_outline),
+                                selectedIcon: const Icon(Icons.person),
+                                isSelected: widget.currentIndex == 4,
+                                tooltip: 'マイページ',
+                                onPressed: () => widget.onTabSelected(4),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeInOutCubic,
-                      offset: _isSearchMode ? Offset.zero : const Offset(0, -1.5),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 300),
-                        opacity: _isSearchMode ? 1.0 : 0.0,
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.more_vert),
-                              tooltip: 'メニュー',
-                              onPressed: () => _showMoreMenu(context),
-                            ),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                autofocus: _isSearchMode,
-                                onSubmitted: (val) {
-                                  if (val.trim().isNotEmpty) {
-                                    widget.onSearchSubmitted(val.trim());
-                                  }
-                                },
-                                decoration: const InputDecoration(
-                                  hintText: '検索キーワードまたはURLを入力...',
-                                  border: InputBorder.none,
-                                  isDense: true,
+                      AnimatedSlide(
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeInOutCubic,
+                        offset: _isSearchMode ? Offset.zero : const Offset(0, -1.5),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          opacity: _isSearchMode ? 1.0 : 0.0,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.more_vert),
+                                tooltip: 'メニュー',
+                                onPressed: () => _showMoreMenu(context),
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  onSubmitted: (val) {
+                                    final trimmed = val.trim();
+                                    if (trimmed.isNotEmpty) {
+                                      _rawUrl = trimmed;
+                                      widget.onSearchSubmitted(trimmed);
+                                      _searchFocusNode.unfocus();
+                                      _searchController.text = _getDomainOnly(trimmed);
+                                    }
+                                  },
+                                  decoration: const InputDecoration(
+                                    hintText: '検索キーワードまたはURLを入力...',
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                  ),
                                 ),
                               ),
-                            ),
-                            if (_searchController.text.isNotEmpty)
+                              if (_searchController.text.isNotEmpty || _rawUrl.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.cancel, size: 20),
+                                  tooltip: '全消去',
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _rawUrl = '';
+                                    setState(() {});
+                                  },
+                                ),
                               IconButton(
-                                icon: const Icon(Icons.clear, size: 18),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {});
-                                },
+                                icon: const Icon(Icons.grid_view_rounded),
+                                tooltip: 'メニューに戻る',
+                                onPressed: () => _exitSearchMode(0),
                               ),
-                            IconButton(
-                              icon: const Icon(Icons.grid_view_rounded),
-                              tooltip: 'メニューに戻る',
-                              onPressed: () => _exitSearchMode(0),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

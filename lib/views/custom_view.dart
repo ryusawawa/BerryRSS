@@ -17,15 +17,15 @@ class _CustomViewState extends State<CustomView> {
   @override
   Widget build(BuildContext context) {
     if (widget.customUrl.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('カスタムビュー'),
-          centerTitle: true,
-        ),
-        body: const Center(
-          child: Text(
-            'マイページでカスタムURLが設定されていません。\nマイページからお好みのURLを設定してください。',
-            textAlign: TextAlign.center,
+      return const Scaffold(
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Text(
+              'マイページでカスタムURLが設定されていません。\nマイページからお好みのURLを設定してください。',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.5),
+            ),
           ),
         ),
       );
@@ -33,10 +33,11 @@ class _CustomViewState extends State<CustomView> {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: BrowserView(
           key: ValueKey(widget.customUrl),
           url: widget.customUrl,
-          showBar: true,
+          showBar: false,
         ),
       ),
     );

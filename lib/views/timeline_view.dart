@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import '../models/rss_node.dart';
 import '../models/app_storage.dart';
 import '../widgets/liquid_grass_card.dart';
-import 'browser_view.dart';
 
 class TimelineView extends StatefulWidget {
   final List<ArticleItem> articles;
   final bool isLoading;
   final VoidCallback onRefresh;
+  final Function(String url) onArticleSelected;
 
   const TimelineView({
     super.key,
     required this.articles,
     required this.isLoading,
     required this.onRefresh,
+    required this.onArticleSelected,
   });
 
   @override
@@ -85,15 +86,7 @@ class _TimelineViewState extends State<TimelineView> {
                           child: InkWell(
                             onTap: () {
                               if (item.url.isNotEmpty) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => Scaffold(
-                                      appBar: AppBar(title: Text(item.sourceName)),
-                                      body: BrowserView(url: item.url, showBar: false),
-                                    ),
-                                  ),
-                                );
+                                widget.onArticleSelected(item.url);
                               }
                             },
                             child: Padding(

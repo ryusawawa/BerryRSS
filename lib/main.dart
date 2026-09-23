@@ -12,13 +12,11 @@ import 'widgets/liquid_grass_toolbar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   try {
     await RustLib.init();
   } catch (e) {
     debugPrint('RustLib init failed (Fallback to Dart mode): $e');
   }
-
   runApp(const BerryRSSApp());
 }
 
@@ -102,13 +100,12 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  // 起動時は自動的に Search モード (インデックス 2) で開く
   int _currentIndex = 2;
   List<RssNode> _rootNodes = [];
   List<ArticleItem> _articles = [];
   bool _isLoading = false;
   String _customUrl = '';
-  String _searchQueryUrl = 'https://www.google.com';
+  String _searchQueryUrl = '';
 
   @override
   void initState() {
@@ -119,11 +116,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Future<void> _loadSavedData() async {
     final nodes = await AppStorage.loadNodes();
     final customUrl = await AppStorage.loadCustomUrl();
-    final searchEngine = await AppStorage.loadSearchEngine();
     setState(() {
       _rootNodes = nodes;
       _customUrl = customUrl;
-      _searchQueryUrl = searchEngine.isNotEmpty ? searchEngine.replaceAll('?q=', '') : 'https://www.google.com';
     });
     _fetchRssArticles();
   }
@@ -168,6 +163,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         articles: _articles,
         isLoading: _isLoading,
         onRefresh: _fetchRssArticles,
+        onArticleSelected: (url) {
+          setState(() {
+            _searchQueryUrl = url;
+            _currentIndex = 2;
+          });
+        },
       ),
       FindView(
         rootNodes: _rootNodes,

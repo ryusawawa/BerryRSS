@@ -263,6 +263,32 @@ class _MyPageViewState extends State<MyPageView> {
               );
             },
           ),
+          const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 16),
+          Center(
+            child: Column(
+              children: [
+                const Icon(Icons.rss_feed, size: 36, color: Colors.amber),
+                const SizedBox(height: 8),
+                const Text(
+                  'BerryRSS',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Version 1.0.0',
+                  style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '© 2026 BerryRSS Project. All rights reserved.',
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.5)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
